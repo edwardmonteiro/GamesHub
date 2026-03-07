@@ -1,0 +1,13 @@
+{
+  "title": "Guilty Hero",
+  "description": "Slash through waves of shadow enemies in this isometric hack-and-slash. Chain combos, unleash specials, survive the guilt!",
+  "category": "Action",
+  "tags": ["action", "hack-and-slash", "retro", "8bit", "isometric"],
+  "author": "GamesHub",
+  "date": "2026-03-07",
+  "version": "1.0.0",
+  "controls": "Tap/Click to attack, Swipe/Drag to move, Double-tap for special",
+  "difficulty": "Medium",
+  "thumbnail": "",
+  "color": "#ef4444"
+}
