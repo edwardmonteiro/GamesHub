@@ -1,0 +1,699 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>Guilty Hero</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;-webkit-user-select:none;user-select:none;touch-action:none;}
+body{background:#0a0008;overflow:hidden;font-family:'Courier New',monospace;display:flex;align-items:center;justify-content:center;height:100vh;height:100dvh;}
+canvas{display:block;image-rendering:pixelated;}
+.screen{position:fixed;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;z-index:10;background:rgba(10,0,8,0.95);}
+.screen h1{font-size:clamp(28px,8vw,52px);color:#ef4444;text-shadow:0 0 30px #ef4444,0 0 60px #ef444466;letter-spacing:4px;}
+.screen h2{font-size:clamp(14px,4vw,22px);color:#ff6b6b;opacity:0.8;}
+.screen p{font-size:clamp(11px,3vw,14px);color:#aa6666;max-width:300px;text-align:center;line-height:1.6;}
+.btn{background:none;border:2px solid #ef4444;color:#ef4444;padding:14px 40px;font-size:clamp(14px,4vw,20px);font-family:inherit;cursor:pointer;border-radius:4px;transition:all 0.2s;letter-spacing:2px;}
+.btn:hover,.btn:active{background:#ef4444;color:#0a0008;transform:scale(1.05);}
+.hidden{display:none!important;}
+.hud{position:fixed;top:0;left:0;right:0;display:flex;justify-content:space-between;padding:8px 16px;z-index:5;pointer-events:none;}
+.hud span{color:#ef4444;font-size:clamp(11px,3vw,15px);font-family:'Courier New',monospace;text-shadow:0 0 10px #ef444488;}
+.combo-popup{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);color:#ffdd44;font-size:clamp(24px,8vw,48px);font-family:'Courier New',monospace;font-weight:bold;text-shadow:0 0 20px #ffdd44;pointer-events:none;z-index:6;opacity:0;transition:none;}
+.combo-popup.show{opacity:1;animation:comboPop 0.6s ease-out forwards;}
+@keyframes comboPop{0%{transform:translate(-50%,-50%) scale(0.5);opacity:1;}50%{transform:translate(-50%,-50%) scale(1.3);}100%{transform:translate(-50%,-80%) scale(1);opacity:0;}}
+.special-bar{position:fixed;bottom:12px;left:50%;transform:translateX(-50%);width:clamp(120px,40vw,200px);height:8px;background:#1a0a18;border:1px solid #ef444466;border-radius:4px;z-index:5;pointer-events:none;}
+.special-fill{height:100%;background:linear-gradient(90deg,#ef4444,#ffdd44);border-radius:3px;transition:width 0.2s;width:0%;}
+.wave-banner{position:fixed;top:40%;left:50%;transform:translate(-50%,-50%);color:#ef4444;font-size:clamp(20px,7vw,40px);font-family:'Courier New',monospace;font-weight:bold;text-shadow:0 0 30px #ef4444;pointer-events:none;z-index:7;opacity:0;}
+.wave-banner.show{animation:waveBanner 1.5s ease-out forwards;}
+@keyframes waveBanner{0%{opacity:0;transform:translate(-50%,-50%) scale(2);}20%{opacity:1;transform:translate(-50%,-50%) scale(1);}80%{opacity:1;}100%{opacity:0;transform:translate(-50%,-50%) scale(0.8);}}
+</style>
+</head>
+<body>
+
+<div id="titleScreen" class="screen">
+  <h1>GUILTY HERO</h1>
+  <h2>Redemption through combat</h2>
+  <p>Slash shadow enemies. Chain combos. Survive waves of guilt.</p>
+  <button class="btn" onclick="startGame()">ATONE</button>
+  <p>Tap to attack | Drag to move | Double-tap for special</p>
+</div>
+
+<div id="gameOver" class="screen hidden">
+  <h1>FALLEN</h1>
+  <h2 id="finalInfo"></h2>
+  <p id="finalStats"></p>
+  <button class="btn" onclick="startGame()">RISE AGAIN</button>
+</div>
+
+<div id="gameUI" class="hidden">
+  <div class="hud">
+    <span>SCORE <span id="score">0</span></span>
+    <span>WAVE <span id="wave">1</span></span>
+    <span>x<span id="combo">0</span></span>
+    <span id="hp">HP ████</span>
+  </div>
+  <div class="special-bar"><div class="special-fill" id="specialFill"></div></div>
+</div>
+
+<div class="combo-popup" id="comboPopup"></div>
+<div class="wave-banner" id="waveBanner"></div>
+<canvas id="c"></canvas>
+
+<script>
+const canvas = document.getElementById('c');
+const ctx = canvas.getContext('2d');
+
+// --- Audio engine (8-bit) ---
+const AudioCtx = window.AudioContext || window.webkitAudioContext;
+let audioCtx;
+function initAudio() { if (!audioCtx) audioCtx = new AudioCtx(); }
+
+function playSound(type) {
+  if (!audioCtx) return;
+  const t = audioCtx.currentTime;
+  const o = audioCtx.createOscillator();
+  const g = audioCtx.createGain();
+  o.connect(g); g.connect(audioCtx.destination);
+  switch(type) {
+    case 'slash':
+      o.type = 'square'; o.frequency.setValueAtTime(400, t);
+      o.frequency.exponentialRampToValueAtTime(100, t + 0.1);
+      g.gain.setValueAtTime(0.15, t); g.gain.exponentialRampToValueAtTime(0.001, t + 0.1);
+      o.start(t); o.stop(t + 0.1); break;
+    case 'hit':
+      o.type = 'sawtooth'; o.frequency.setValueAtTime(200, t);
+      o.frequency.exponentialRampToValueAtTime(60, t + 0.15);
+      g.gain.setValueAtTime(0.12, t); g.gain.exponentialRampToValueAtTime(0.001, t + 0.15);
+      o.start(t); o.stop(t + 0.15); break;
+    case 'kill':
+      o.type = 'square'; o.frequency.setValueAtTime(600, t);
+      o.frequency.exponentialRampToValueAtTime(1200, t + 0.05);
+      o.frequency.exponentialRampToValueAtTime(200, t + 0.15);
+      g.gain.setValueAtTime(0.15, t); g.gain.exponentialRampToValueAtTime(0.001, t + 0.2);
+      o.start(t); o.stop(t + 0.2); break;
+    case 'combo':
+      o.type = 'square'; o.frequency.setValueAtTime(800, t);
+      o.frequency.setValueAtTime(1000, t + 0.05);
+      o.frequency.setValueAtTime(1200, t + 0.1);
+      g.gain.setValueAtTime(0.12, t); g.gain.exponentialRampToValueAtTime(0.001, t + 0.2);
+      o.start(t); o.stop(t + 0.2); break;
+    case 'special':
+      o.type = 'sawtooth'; o.frequency.setValueAtTime(150, t);
+      o.frequency.exponentialRampToValueAtTime(800, t + 0.15);
+      o.frequency.exponentialRampToValueAtTime(100, t + 0.4);
+      g.gain.setValueAtTime(0.2, t); g.gain.exponentialRampToValueAtTime(0.001, t + 0.4);
+      o.start(t); o.stop(t + 0.4); break;
+    case 'hurt':
+      o.type = 'sawtooth'; o.frequency.setValueAtTime(150, t);
+      o.frequency.exponentialRampToValueAtTime(50, t + 0.2);
+      g.gain.setValueAtTime(0.2, t); g.gain.exponentialRampToValueAtTime(0.001, t + 0.25);
+      o.start(t); o.stop(t + 0.25); break;
+    case 'wave':
+      o.type = 'triangle'; o.frequency.setValueAtTime(300, t);
+      o.frequency.setValueAtTime(400, t + 0.1); o.frequency.setValueAtTime(600, t + 0.2);
+      o.frequency.setValueAtTime(800, t + 0.3);
+      g.gain.setValueAtTime(0.12, t); g.gain.exponentialRampToValueAtTime(0.001, t + 0.4);
+      o.start(t); o.stop(t + 0.4); break;
+    case 'death':
+      o.type = 'sawtooth'; o.frequency.setValueAtTime(400, t);
+      o.frequency.exponentialRampToValueAtTime(30, t + 0.8);
+      g.gain.setValueAtTime(0.2, t); g.gain.exponentialRampToValueAtTime(0.001, t + 0.8);
+      o.start(t); o.stop(t + 0.8); break;
+  }
+}
+
+// --- Sizing ---
+let W, H, SCALE;
+function resize() {
+  W = window.innerWidth; H = window.innerHeight;
+  canvas.width = W; canvas.height = H;
+  SCALE = Math.min(W, H) / 400;
+}
+window.addEventListener('resize', resize);
+resize();
+
+// --- Isometric helpers ---
+function toIso(x, y) {
+  return { x: (x - y) * 0.866 * SCALE + W / 2, y: (x + y) * 0.5 * SCALE + H / 2 - 40 * SCALE };
+}
+function fromIso(sx, sy) {
+  const cx = sx - W / 2, cy = sy - H / 2 + 40 * SCALE;
+  const x = (cx / (0.866 * SCALE) + cy / (0.5 * SCALE)) / 2;
+  const y = (cy / (0.5 * SCALE) - cx / (0.866 * SCALE)) / 2;
+  return { x, y };
+}
+
+// --- Game state ---
+let player, enemies, particles, slashEffects, score, combo, comboTimer, wave, waveTimer;
+let enemiesLeft, specialCharge, gameActive, shakeAmount, shakeTime, totalKills;
+const MAX_HP = 5;
+const COMBO_TIMEOUT = 1500;
+
+function startGame() {
+  initAudio();
+  document.getElementById('titleScreen').classList.add('hidden');
+  document.getElementById('gameOver').classList.add('hidden');
+  document.getElementById('gameUI').classList.remove('hidden');
+  player = { x: 0, y: 0, tx: 0, ty: 0, hp: MAX_HP, attacking: false, attackTimer: 0, attackAngle: 0, invincible: 0, specialActive: 0 };
+  enemies = []; particles = []; slashEffects = [];
+  score = 0; combo = 0; comboTimer = 0; wave = 0; waveTimer = 0; enemiesLeft = 0;
+  specialCharge = 0; gameActive = true; shakeAmount = 0; shakeTime = 0; totalKills = 0;
+  updateHUD();
+  nextWave();
+  requestAnimationFrame(gameLoop);
+}
+
+function nextWave() {
+  wave++;
+  const count = 3 + wave * 2;
+  enemiesLeft = count;
+  for (let i = 0; i < count; i++) {
+    const angle = (Math.PI * 2 * i) / count + Math.random() * 0.5;
+    const dist = 120 + Math.random() * 60;
+    const type = Math.random() < 0.15 + wave * 0.03 ? 'fast' : Math.random() < 0.1 + wave * 0.02 ? 'big' : 'normal';
+    enemies.push({
+      x: player.x + Math.cos(angle) * dist,
+      y: player.y + Math.sin(angle) * dist,
+      hp: type === 'big' ? 3 : 1,
+      maxHp: type === 'big' ? 3 : 1,
+      speed: type === 'fast' ? 0.8 + wave * 0.04 : type === 'big' ? 0.25 : 0.35 + wave * 0.03,
+      size: type === 'big' ? 14 : type === 'fast' ? 7 : 10,
+      type, hitFlash: 0, spawnDelay: i * 8
+    });
+  }
+  document.getElementById('wave').textContent = wave;
+  showWaveBanner('WAVE ' + wave);
+  playSound('wave');
+}
+
+// --- Particles ---
+function spawnParticles(x, y, color, count, speed, life) {
+  for (let i = 0; i < count; i++) {
+    const angle = Math.random() * Math.PI * 2;
+    const spd = (0.5 + Math.random()) * speed;
+    particles.push({ x, y, vx: Math.cos(angle) * spd, vy: Math.sin(angle) * spd, life, maxLife: life, color, size: 1 + Math.random() * 2 });
+  }
+}
+
+function spawnSlash(x, y, angle) {
+  slashEffects.push({ x, y, angle, life: 12, maxLife: 12 });
+}
+
+// --- Input ---
+let touchStart = null, lastTapTime = 0, isDragging = false, moveTarget = null;
+
+function getPos(e) {
+  const t = e.touches ? e.touches[0] : e;
+  return { x: t.clientX, y: t.clientY };
+}
+
+canvas.addEventListener('touchstart', handleStart, { passive: false });
+canvas.addEventListener('mousedown', handleStart);
+canvas.addEventListener('touchmove', handleMove, { passive: false });
+canvas.addEventListener('mousemove', handleMove);
+canvas.addEventListener('touchend', handleEnd);
+canvas.addEventListener('mouseup', handleEnd);
+
+function handleStart(e) {
+  e.preventDefault();
+  if (!gameActive) return;
+  const pos = getPos(e);
+  touchStart = { ...pos, time: Date.now() };
+  isDragging = false;
+}
+
+function handleMove(e) {
+  e.preventDefault();
+  if (!touchStart || !gameActive) return;
+  const pos = getPos(e);
+  const dx = pos.x - touchStart.x, dy = pos.y - touchStart.y;
+  if (Math.sqrt(dx * dx + dy * dy) > 15) {
+    isDragging = true;
+    const world = fromIso(pos.x, pos.y);
+    player.tx = world.x;
+    player.ty = world.y;
+  }
+}
+
+function handleEnd(e) {
+  e.preventDefault();
+  if (!gameActive) return;
+  if (!isDragging) {
+    const now = Date.now();
+    if (now - lastTapTime < 300 && specialCharge >= 100) {
+      doSpecial();
+    } else {
+      doAttack(e);
+    }
+    lastTapTime = now;
+  }
+  touchStart = null;
+  isDragging = false;
+}
+
+// --- Keyboard support ---
+const keys = {};
+document.addEventListener('keydown', e => {
+  keys[e.key.toLowerCase()] = true;
+  if (e.key === ' ' && gameActive) { doAttack(null); e.preventDefault(); }
+  if (e.key === 'e' && gameActive && specialCharge >= 100) doSpecial();
+});
+document.addEventListener('keyup', e => { keys[e.key.toLowerCase()] = false; });
+
+function doAttack(e) {
+  if (player.attacking) return;
+  initAudio();
+  player.attacking = true;
+  player.attackTimer = 10;
+  let closest = null, closestDist = Infinity;
+  enemies.forEach(en => {
+    if (en.spawnDelay > 0) return;
+    const dx = en.x - player.x, dy = en.y - player.y;
+    const d = Math.sqrt(dx * dx + dy * dy);
+    if (d < closestDist) { closestDist = d; closest = en; }
+  });
+  if (closest) {
+    player.attackAngle = Math.atan2(closest.y - player.y, closest.x - player.x);
+  } else if (e) {
+    const pos = getPos(e);
+    const world = fromIso(pos.x, pos.y);
+    player.attackAngle = Math.atan2(world.y - player.y, world.x - player.x);
+  } else {
+    player.attackAngle = 0;
+  }
+  spawnSlash(player.x, player.y, player.attackAngle);
+  playSound('slash');
+  const RANGE = 35;
+  enemies.forEach(en => {
+    if (en.spawnDelay > 0) return;
+    const dx = en.x - player.x, dy = en.y - player.y;
+    const d = Math.sqrt(dx * dx + dy * dy);
+    const a = Math.atan2(dy, dx);
+    let da = a - player.attackAngle;
+    while (da > Math.PI) da -= Math.PI * 2;
+    while (da < -Math.PI) da += Math.PI * 2;
+    if (d < RANGE && Math.abs(da) < 0.8) {
+      en.hp--;
+      en.hitFlash = 6;
+      shakeAmount = 3;
+      shakeTime = 6;
+      playSound('hit');
+      spawnParticles(en.x, en.y, '#ff6666', 5, 2, 15);
+      if (en.hp <= 0) {
+        killEnemy(en);
+      }
+    }
+  });
+}
+
+function killEnemy(en) {
+  combo++;
+  comboTimer = COMBO_TIMEOUT;
+  totalKills++;
+  const points = 10 * combo;
+  score += points;
+  specialCharge = Math.min(100, specialCharge + 12 + combo * 2);
+  enemiesLeft--;
+  playSound('kill');
+  spawnParticles(en.x, en.y, en.type === 'fast' ? '#ffaa44' : en.type === 'big' ? '#ff44ff' : '#ff4444', 12, 3, 20);
+  shakeAmount = 5 + Math.min(combo, 10);
+  shakeTime = 8;
+  if (combo > 1 && combo % 3 === 0) {
+    playSound('combo');
+    showCombo('x' + combo + ' COMBO!');
+    spawnParticles(player.x, player.y, '#ffdd44', 20, 4, 25);
+  }
+  if (combo === 5) showCombo('RUTHLESS!');
+  if (combo === 10) showCombo('UNSTOPPABLE!');
+  if (combo === 20) showCombo('GODLIKE!');
+  updateHUD();
+}
+
+function doSpecial() {
+  initAudio();
+  specialCharge = 0;
+  player.specialActive = 20;
+  playSound('special');
+  shakeAmount = 15;
+  shakeTime = 15;
+  spawnParticles(player.x, player.y, '#ffdd44', 40, 5, 30);
+  spawnParticles(player.x, player.y, '#ff4444', 30, 6, 25);
+  enemies.forEach(en => {
+    if (en.spawnDelay > 0) return;
+    const dx = en.x - player.x, dy = en.y - player.y;
+    const d = Math.sqrt(dx * dx + dy * dy);
+    if (d < 80) {
+      en.hp -= 3;
+      en.hitFlash = 10;
+      spawnParticles(en.x, en.y, '#ffffff', 8, 4, 20);
+      if (en.hp <= 0) killEnemy(en);
+    }
+  });
+  updateHUD();
+}
+
+// --- HUD ---
+function updateHUD() {
+  document.getElementById('score').textContent = score;
+  document.getElementById('combo').textContent = combo;
+  const bars = '';
+  let hpText = 'HP ';
+  for (let i = 0; i < MAX_HP; i++) hpText += i < player.hp ? '\u2588' : '\u2591';
+  document.getElementById('hp').textContent = hpText;
+  document.getElementById('specialFill').style.width = specialCharge + '%';
+}
+
+function showCombo(text) {
+  const el = document.getElementById('comboPopup');
+  el.textContent = text;
+  el.classList.remove('show');
+  void el.offsetWidth;
+  el.classList.add('show');
+}
+
+function showWaveBanner(text) {
+  const el = document.getElementById('waveBanner');
+  el.textContent = text;
+  el.classList.remove('show');
+  void el.offsetWidth;
+  el.classList.add('show');
+}
+
+// --- Drawing ---
+function drawIsoFloor() {
+  const tileSize = 30;
+  const range = 8;
+  ctx.globalAlpha = 0.15;
+  for (let i = -range; i <= range; i++) {
+    for (let j = -range; j <= range; j++) {
+      const wx = player.x + i * tileSize - (player.x % tileSize);
+      const wy = player.y + j * tileSize - (player.y % tileSize);
+      const p = toIso(wx, wy);
+      const dx = tileSize * 0.866 * SCALE;
+      const dy = tileSize * 0.5 * SCALE;
+      const bright = ((Math.floor((wx + 9999) / tileSize) + Math.floor((wy + 9999) / tileSize)) % 2 === 0) ? 0.08 : 0.04;
+      ctx.fillStyle = `rgba(200, 80, 80, ${bright / 0.15})`;
+      ctx.beginPath();
+      ctx.moveTo(p.x, p.y - dy);
+      ctx.lineTo(p.x + dx, p.y);
+      ctx.lineTo(p.x, p.y + dy);
+      ctx.lineTo(p.x - dx, p.y);
+      ctx.closePath();
+      ctx.fill();
+    }
+  }
+  ctx.globalAlpha = 1;
+}
+
+function drawShadow(sx, sy, size) {
+  ctx.fillStyle = 'rgba(0,0,0,0.3)';
+  ctx.beginPath();
+  ctx.ellipse(sx, sy + size * 0.4 * SCALE, size * 0.7 * SCALE, size * 0.25 * SCALE, 0, 0, Math.PI * 2);
+  ctx.fill();
+}
+
+function drawPlayer() {
+  const p = toIso(player.x, player.y);
+  const s = 12 * SCALE;
+  drawShadow(p.x, p.y, 14);
+  // Body
+  const flash = player.invincible > 0 && Math.floor(player.invincible / 3) % 2 === 0;
+  const specialGlow = player.specialActive > 0;
+  if (specialGlow) {
+    ctx.shadowColor = '#ffdd44';
+    ctx.shadowBlur = 20 * SCALE;
+  }
+  ctx.fillStyle = flash ? '#ffffff' : '#dd2244';
+  // Torso (isometric diamond shape)
+  ctx.beginPath();
+  ctx.moveTo(p.x, p.y - s * 1.5);
+  ctx.lineTo(p.x + s * 0.6, p.y - s * 0.4);
+  ctx.lineTo(p.x, p.y + s * 0.2);
+  ctx.lineTo(p.x - s * 0.6, p.y - s * 0.4);
+  ctx.closePath();
+  ctx.fill();
+  // Head
+  ctx.fillStyle = flash ? '#ffffff' : '#ffaa88';
+  ctx.beginPath();
+  ctx.arc(p.x, p.y - s * 1.8, s * 0.4, 0, Math.PI * 2);
+  ctx.fill();
+  // Eyes
+  ctx.fillStyle = '#440000';
+  ctx.fillRect(p.x - s * 0.2, p.y - s * 1.85, s * 0.1, s * 0.1);
+  ctx.fillRect(p.x + s * 0.1, p.y - s * 1.85, s * 0.1, s * 0.1);
+  // Sword arm
+  if (player.attacking && player.attackTimer > 0) {
+    ctx.strokeStyle = '#cccccc';
+    ctx.lineWidth = 2 * SCALE;
+    ctx.lineCap = 'round';
+    const swingProgress = 1 - player.attackTimer / 10;
+    const swingAngle = player.attackAngle + (swingProgress - 0.5) * 1.5;
+    const swordLen = 22 * SCALE;
+    ctx.beginPath();
+    ctx.moveTo(p.x, p.y - s * 0.6);
+    ctx.lineTo(p.x + Math.cos(swingAngle) * swordLen, p.y - s * 0.6 + Math.sin(swingAngle) * swordLen * 0.5);
+    ctx.stroke();
+    // Sword glow
+    ctx.strokeStyle = '#ff4444';
+    ctx.lineWidth = 1 * SCALE;
+    ctx.globalAlpha = 0.5;
+    ctx.stroke();
+    ctx.globalAlpha = 1;
+  }
+  ctx.shadowBlur = 0;
+}
+
+function drawEnemy(en) {
+  if (en.spawnDelay > 0) return;
+  const p = toIso(en.x, en.y);
+  const s = en.size * SCALE;
+  drawShadow(p.x, p.y, en.size);
+  const flash = en.hitFlash > 0;
+  // Body
+  if (en.type === 'big') {
+    ctx.fillStyle = flash ? '#ffffff' : '#8800aa';
+    ctx.beginPath();
+    ctx.moveTo(p.x, p.y - s * 1.6);
+    ctx.lineTo(p.x + s * 0.8, p.y - s * 0.2);
+    ctx.lineTo(p.x + s * 0.5, p.y + s * 0.3);
+    ctx.lineTo(p.x - s * 0.5, p.y + s * 0.3);
+    ctx.lineTo(p.x - s * 0.8, p.y - s * 0.2);
+    ctx.closePath();
+    ctx.fill();
+  } else if (en.type === 'fast') {
+    ctx.fillStyle = flash ? '#ffffff' : '#cc6600';
+    ctx.beginPath();
+    ctx.moveTo(p.x, p.y - s * 1.3);
+    ctx.lineTo(p.x + s * 0.5, p.y);
+    ctx.lineTo(p.x, p.y + s * 0.2);
+    ctx.lineTo(p.x - s * 0.5, p.y);
+    ctx.closePath();
+    ctx.fill();
+  } else {
+    ctx.fillStyle = flash ? '#ffffff' : '#333355';
+    ctx.beginPath();
+    ctx.moveTo(p.x, p.y - s * 1.4);
+    ctx.lineTo(p.x + s * 0.6, p.y - s * 0.2);
+    ctx.lineTo(p.x, p.y + s * 0.2);
+    ctx.lineTo(p.x - s * 0.6, p.y - s * 0.2);
+    ctx.closePath();
+    ctx.fill();
+  }
+  // Eyes (red glow)
+  ctx.fillStyle = '#ff0000';
+  ctx.shadowColor = '#ff0000';
+  ctx.shadowBlur = 5 * SCALE;
+  const eyeY = p.y - s * (en.type === 'big' ? 0.9 : 0.8);
+  ctx.fillRect(p.x - s * 0.2, eyeY, s * 0.12, s * 0.12);
+  ctx.fillRect(p.x + s * 0.08, eyeY, s * 0.12, s * 0.12);
+  ctx.shadowBlur = 0;
+  // HP bar for big enemies
+  if (en.type === 'big' && en.hp < en.maxHp) {
+    const bw = s * 1.2;
+    ctx.fillStyle = '#330000';
+    ctx.fillRect(p.x - bw / 2, p.y - s * 2, bw, 3 * SCALE);
+    ctx.fillStyle = '#ff4444';
+    ctx.fillRect(p.x - bw / 2, p.y - s * 2, bw * (en.hp / en.maxHp), 3 * SCALE);
+  }
+}
+
+function drawSlashEffect(sl) {
+  const p = toIso(sl.x, sl.y);
+  const progress = 1 - sl.life / sl.maxLife;
+  const len = (20 + progress * 20) * SCALE;
+  const spread = 0.6;
+  ctx.globalAlpha = sl.life / sl.maxLife;
+  ctx.strokeStyle = '#ff4444';
+  ctx.lineWidth = (3 - progress * 2) * SCALE;
+  ctx.lineCap = 'round';
+  for (let i = -2; i <= 2; i++) {
+    const a = sl.angle + i * spread * 0.2;
+    ctx.beginPath();
+    ctx.moveTo(p.x + Math.cos(a) * 8 * SCALE, p.y + Math.sin(a) * 4 * SCALE);
+    ctx.lineTo(p.x + Math.cos(a) * len, p.y + Math.sin(a) * len * 0.5);
+    ctx.stroke();
+  }
+  // Arc slash
+  ctx.beginPath();
+  ctx.arc(p.x, p.y, len * 0.7, sl.angle - spread, sl.angle + spread);
+  ctx.stroke();
+  ctx.globalAlpha = 1;
+}
+
+function drawParticle(pt) {
+  const p = toIso(pt.x, pt.y);
+  ctx.globalAlpha = pt.life / pt.maxLife;
+  ctx.fillStyle = pt.color;
+  ctx.shadowColor = pt.color;
+  ctx.shadowBlur = 4 * SCALE;
+  ctx.fillRect(p.x - pt.size * SCALE * 0.5, p.y - pt.size * SCALE * 0.5, pt.size * SCALE, pt.size * SCALE);
+  ctx.shadowBlur = 0;
+  ctx.globalAlpha = 1;
+}
+
+// --- Game loop ---
+let lastTime = 0;
+function gameLoop(time) {
+  if (!gameActive) return;
+  const dt = Math.min(time - lastTime, 33);
+  lastTime = time;
+
+  // Keyboard movement
+  let mx = 0, my = 0;
+  if (keys['w'] || keys['arrowup']) my -= 1;
+  if (keys['s'] || keys['arrowdown']) my += 1;
+  if (keys['a'] || keys['arrowleft']) mx -= 1;
+  if (keys['d'] || keys['arrowright']) mx += 1;
+  if (mx || my) {
+    const len = Math.sqrt(mx * mx + my * my);
+    player.tx = player.x + (mx / len) * 50;
+    player.ty = player.y + (my / len) * 50;
+  }
+
+  // Player movement (smooth)
+  const pdx = player.tx - player.x, pdy = player.ty - player.y;
+  const pdist = Math.sqrt(pdx * pdx + pdy * pdy);
+  if (pdist > 1) {
+    const speed = 1.5;
+    player.x += (pdx / pdist) * speed;
+    player.y += (pdy / pdist) * speed;
+  }
+
+  // Attack timer
+  if (player.attackTimer > 0) player.attackTimer--;
+  if (player.attackTimer === 0) player.attacking = false;
+  if (player.invincible > 0) player.invincible--;
+  if (player.specialActive > 0) player.specialActive--;
+
+  // Combo timer
+  if (comboTimer > 0) {
+    comboTimer -= dt;
+    if (comboTimer <= 0) { combo = 0; updateHUD(); }
+  }
+
+  // Enemies
+  enemies = enemies.filter(en => en.hp > 0);
+  enemies.forEach(en => {
+    if (en.spawnDelay > 0) { en.spawnDelay--; return; }
+    const dx = player.x - en.x, dy = player.y - en.y;
+    const d = Math.sqrt(dx * dx + dy * dy);
+    if (d > 2) {
+      en.x += (dx / d) * en.speed;
+      en.y += (dy / d) * en.speed;
+    }
+    if (en.hitFlash > 0) en.hitFlash--;
+    // Damage player
+    if (d < en.size + 8 && player.invincible <= 0 && player.specialActive <= 0) {
+      player.hp--;
+      player.invincible = 40;
+      shakeAmount = 10;
+      shakeTime = 12;
+      playSound('hurt');
+      spawnParticles(player.x, player.y, '#ff0000', 15, 3, 20);
+      updateHUD();
+      if (player.hp <= 0) {
+        gameOver();
+        return;
+      }
+    }
+  });
+
+  // Check wave complete
+  if (enemies.filter(e => e.hp > 0).length === 0 && gameActive) {
+    waveTimer++;
+    if (waveTimer > 60) {
+      waveTimer = 0;
+      // Heal 1 HP between waves
+      player.hp = Math.min(MAX_HP, player.hp + 1);
+      updateHUD();
+      nextWave();
+    }
+  }
+
+  // Particles
+  particles.forEach(pt => {
+    pt.x += pt.vx;
+    pt.y += pt.vy;
+    pt.vx *= 0.95;
+    pt.vy *= 0.95;
+    pt.life--;
+  });
+  particles = particles.filter(pt => pt.life > 0);
+
+  // Slash effects
+  slashEffects.forEach(sl => sl.life--);
+  slashEffects = slashEffects.filter(sl => sl.life > 0);
+
+  // Shake
+  if (shakeTime > 0) shakeTime--;
+  else shakeAmount *= 0.85;
+
+  // --- Draw ---
+  ctx.save();
+  if (shakeAmount > 0.5) {
+    ctx.translate(
+      (Math.random() - 0.5) * shakeAmount * SCALE,
+      (Math.random() - 0.5) * shakeAmount * SCALE
+    );
+  }
+
+  // Background
+  ctx.fillStyle = '#0a0008';
+  ctx.fillRect(-20, -20, W + 40, H + 40);
+
+  // Isometric floor
+  drawIsoFloor();
+
+  // Slash effects (behind characters)
+  slashEffects.forEach(drawSlashEffect);
+
+  // Sort by Y for depth
+  const drawables = [
+    { y: player.y, draw: () => drawPlayer() },
+    ...enemies.filter(e => e.spawnDelay <= 0).map(e => ({ y: e.y, draw: () => drawEnemy(e) }))
+  ].sort((a, b) => a.y - b.y);
+  drawables.forEach(d => d.draw());
+
+  // Particles on top
+  particles.forEach(drawParticle);
+
+  // Special flash
+  if (player.specialActive > 15) {
+    ctx.fillStyle = `rgba(255, 255, 200, ${(player.specialActive - 15) / 20})`;
+    ctx.fillRect(-20, -20, W + 40, H + 40);
+  }
+
+  ctx.restore();
+  requestAnimationFrame(gameLoop);
+}
+
+function gameOver() {
+  gameActive = false;
+  playSound('death');
+  document.getElementById('gameUI').classList.add('hidden');
+  document.getElementById('finalInfo').textContent = `Score: ${score} | Wave: ${wave}`;
+  document.getElementById('finalStats').textContent = `${totalKills} kills | Best combo: x${combo}`;
+  document.getElementById('gameOver').classList.remove('hidden');
+}
+</script>
+</body>
+</html>

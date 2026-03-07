@@ -53,17 +53,20 @@ GamesHub/
 
 Arcade, Puzzle, Action, Strategy, Racing, Sports, RPG, Casual
 
-## Running locally
+## Play Now
 
-Just open `index.html` in a browser, or use a local server:
+**Option 1 - GitHub Pages (recommended):**
+Enable GitHub Pages in your repo settings (`Settings → Pages → Deploy from branch → main → / (root) → Save`). Your site will be live at `https://<your-username>.github.io/GamesHub/`
+
+> **Note:** Opening `index.html` directly on GitHub.com will show the source code, not the rendered page. You must use GitHub Pages or a local server.
+
+**Option 2 - Local server:**
 
 ```bash
 npx serve .
 ```
 
-## Deployment
-
-Enable GitHub Pages on the `main` branch. The site is the `index.html` at the root.
+Then open `http://localhost:3000` in your browser.
 
 ## License
 
