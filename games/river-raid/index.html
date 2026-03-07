@@ -1,0 +1,620 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>River Raid</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;-webkit-user-select:none;user-select:none;touch-action:none;}
+body{background:#000;overflow:hidden;font-family:'Courier New',monospace;display:flex;align-items:center;justify-content:center;height:100vh;height:100dvh;}
+canvas{display:block;image-rendering:pixelated;}
+.screen{position:fixed;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;z-index:10;background:rgba(0,0,0,0.95);}
+.screen h1{font-size:clamp(26px,8vw,48px);color:#3b82f6;text-shadow:0 0 30px #3b82f6,0 0 60px #3b82f666;letter-spacing:4px;}
+.screen h2{font-size:clamp(13px,4vw,20px);color:#60a5fa;opacity:0.8;}
+.screen p{font-size:clamp(11px,3vw,14px);color:#6688aa;max-width:300px;text-align:center;line-height:1.6;}
+.btn{background:none;border:2px solid #3b82f6;color:#3b82f6;padding:14px 40px;font-size:clamp(14px,4vw,20px);font-family:inherit;cursor:pointer;border-radius:4px;transition:all 0.2s;letter-spacing:2px;}
+.btn:hover,.btn:active{background:#3b82f6;color:#000;transform:scale(1.05);}
+.hidden{display:none!important;}
+.hud{position:fixed;top:0;left:0;right:0;display:flex;justify-content:space-between;align-items:flex-start;padding:8px 12px;z-index:5;pointer-events:none;}
+.hud-col{display:flex;flex-direction:column;gap:2px;}
+.hud span{color:#60a5fa;font-size:clamp(10px,2.8vw,14px);font-family:'Courier New',monospace;text-shadow:0 0 8px #3b82f688;}
+.fuel-bar{position:fixed;bottom:10px;left:50%;transform:translateX(-50%);width:clamp(100px,50vw,220px);height:10px;background:#112;border:1px solid #3b82f666;border-radius:4px;z-index:5;pointer-events:none;}
+.fuel-fill{height:100%;border-radius:3px;transition:width 0.15s;width:100%;}
+.fuel-label{position:fixed;bottom:22px;left:50%;transform:translateX(-50%);color:#60a5fa;font-size:clamp(9px,2.5vw,12px);font-family:'Courier New',monospace;z-index:5;pointer-events:none;}
+</style>
+</head>
+<body>
+
+<div id="titleScreen" class="screen">
+  <h1>RIVER RAID</h1>
+  <h2>Patrol the deadly river</h2>
+  <p>Destroy enemies, dodge river banks, collect fuel depots before you run dry!</p>
+  <button class="btn" onclick="startGame()">TAKE OFF</button>
+  <p>Drag or Tilt to steer | Tap to shoot<br>Keyboard: Arrows + Space</p>
+</div>
+
+<div id="gameOver" class="screen hidden">
+  <h1>CRASHED</h1>
+  <h2 id="finalInfo"></h2>
+  <p id="finalStats"></p>
+  <button class="btn" onclick="startGame()">RETRY</button>
+</div>
+
+<div id="gameUI" class="hidden">
+  <div class="hud">
+    <div class="hud-col"><span>SCORE <span id="score">0</span></span><span>HI <span id="hiScore">0</span></span></div>
+    <div class="hud-col" style="align-items:flex-end;"><span>LIVES <span id="lives">3</span></span><span>x<span id="streak">0</span></span></div>
+  </div>
+  <div class="fuel-label">FUEL</div>
+  <div class="fuel-bar"><div class="fuel-fill" id="fuelFill"></div></div>
+</div>
+
+<canvas id="c"></canvas>
+
+<script>
+const canvas = document.getElementById('c');
+const ctx = canvas.getContext('2d');
+
+// --- Audio ---
+const AudioCtx = window.AudioContext || window.webkitAudioContext;
+let audioCtx;
+function initAudio(){if(!audioCtx)audioCtx=new AudioCtx();}
+
+function playSound(type){
+  if(!audioCtx)return;
+  const t=audioCtx.currentTime;
+  const o=audioCtx.createOscillator();
+  const g=audioCtx.createGain();
+  o.connect(g);g.connect(audioCtx.destination);
+  switch(type){
+    case'shoot':
+      o.type='square';o.frequency.setValueAtTime(880,t);
+      o.frequency.exponentialRampToValueAtTime(440,t+0.06);
+      g.gain.setValueAtTime(0.1,t);g.gain.exponentialRampToValueAtTime(0.001,t+0.06);
+      o.start(t);o.stop(t+0.06);break;
+    case'explode':
+      o.type='sawtooth';o.frequency.setValueAtTime(300,t);
+      o.frequency.exponentialRampToValueAtTime(30,t+0.2);
+      g.gain.setValueAtTime(0.15,t);g.gain.exponentialRampToValueAtTime(0.001,t+0.2);
+      o.start(t);o.stop(t+0.2);break;
+    case'fuel':
+      o.type='triangle';o.frequency.setValueAtTime(500,t);
+      o.frequency.setValueAtTime(700,t+0.06);o.frequency.setValueAtTime(900,t+0.12);
+      g.gain.setValueAtTime(0.1,t);g.gain.exponentialRampToValueAtTime(0.001,t+0.18);
+      o.start(t);o.stop(t+0.18);break;
+    case'die':
+      o.type='sawtooth';o.frequency.setValueAtTime(500,t);
+      o.frequency.exponentialRampToValueAtTime(20,t+0.6);
+      g.gain.setValueAtTime(0.2,t);g.gain.exponentialRampToValueAtTime(0.001,t+0.6);
+      o.start(t);o.stop(t+0.6);break;
+    case'bonus':
+      o.type='square';o.frequency.setValueAtTime(600,t);
+      o.frequency.setValueAtTime(800,t+0.07);o.frequency.setValueAtTime(1000,t+0.14);
+      o.frequency.setValueAtTime(1200,t+0.21);
+      g.gain.setValueAtTime(0.1,t);g.gain.exponentialRampToValueAtTime(0.001,t+0.28);
+      o.start(t);o.stop(t+0.28);break;
+    case'hit':
+      o.type='square';o.frequency.setValueAtTime(200,t);
+      o.frequency.exponentialRampToValueAtTime(80,t+0.1);
+      g.gain.setValueAtTime(0.12,t);g.gain.exponentialRampToValueAtTime(0.001,t+0.1);
+      o.start(t);o.stop(t+0.1);break;
+    case'engine':
+      o.type='sawtooth';o.frequency.setValueAtTime(55,t);
+      g.gain.setValueAtTime(0.03,t);g.gain.exponentialRampToValueAtTime(0.001,t+0.08);
+      o.start(t);o.stop(t+0.08);break;
+  }
+}
+
+// --- Sizing ---
+let W,H,GW,GH,SCALE,OX;
+function resize(){
+  W=window.innerWidth;H=window.innerHeight;
+  canvas.width=W;canvas.height=H;
+  GW=Math.min(W,400);GH=H;
+  OX=(W-GW)/2;
+  SCALE=GW/400;
+}
+window.addEventListener('resize',resize);
+resize();
+
+// --- River generation ---
+let riverSegments=[];
+const SEG_H=20;
+let riverY=0; // world Y scroll offset
+
+function initRiver(){
+  riverSegments=[];
+  riverY=0;
+  let leftEdge=100,rightEdge=300;
+  const totalSegs=Math.ceil(H/SEG_H)+40;
+  for(let i=0;i<totalSegs;i++){
+    const drift=(Math.random()-0.5)*8;
+    const widthChange=(Math.random()-0.5)*4;
+    leftEdge=Math.max(30,Math.min(160,leftEdge+drift+widthChange));
+    rightEdge=Math.max(leftEdge+100,Math.min(370,rightEdge+drift-widthChange));
+    riverSegments.push({left:leftEdge,right:rightEdge});
+  }
+}
+
+function extendRiver(count){
+  const last=riverSegments[riverSegments.length-1];
+  let leftEdge=last.left,rightEdge=last.right;
+  const difficulty=Math.min(score/2000,1);
+  for(let i=0;i<count;i++){
+    const drift=(Math.random()-0.5)*(8+difficulty*6);
+    const widthChange=(Math.random()-0.5)*(4+difficulty*4);
+    leftEdge=Math.max(20+difficulty*20,Math.min(180,leftEdge+drift+widthChange));
+    rightEdge=Math.max(leftEdge+80-difficulty*20,Math.min(380-difficulty*20,rightEdge+drift-widthChange));
+    riverSegments.push({left:leftEdge,right:rightEdge});
+  }
+}
+
+// --- Game state ---
+let player,bullets,enemies,explosions,fuelDepots,particles;
+let score,lives,fuel,streak,speed,gameActive,hiScore=0;
+let shakeAmt=0,shakeTime=0,engineTimer=0;
+let spawnTimer=0,fuelSpawnTimer=0,distanceTraveled=0;
+
+function startGame(){
+  initAudio();
+  document.getElementById('titleScreen').classList.add('hidden');
+  document.getElementById('gameOver').classList.add('hidden');
+  document.getElementById('gameUI').classList.remove('hidden');
+  player={x:200,targetX:200,alive:true,respawnTimer:0,flash:0,shootCooldown:0};
+  bullets=[];enemies=[];explosions=[];fuelDepots=[];particles=[];
+  score=0;lives=3;fuel=100;streak=0;speed=2;gameActive=true;
+  spawnTimer=0;fuelSpawnTimer=0;distanceTraveled=0;
+  initRiver();
+  updateHUD();
+  requestAnimationFrame(gameLoop);
+}
+
+// --- Input ---
+let touchX=null,isShooting=false;
+canvas.addEventListener('touchstart',e=>{
+  e.preventDefault();initAudio();
+  const t=e.touches[0];
+  touchX=t.clientX;
+  isShooting=true;
+},{passive:false});
+canvas.addEventListener('touchmove',e=>{
+  e.preventDefault();
+  const t=e.touches[0];
+  touchX=t.clientX;
+},{passive:false});
+canvas.addEventListener('touchend',e=>{e.preventDefault();touchX=null;isShooting=false;});
+
+canvas.addEventListener('mousedown',e=>{touchX=e.clientX;isShooting=true;});
+canvas.addEventListener('mousemove',e=>{if(isShooting)touchX=e.clientX;});
+canvas.addEventListener('mouseup',()=>{touchX=null;isShooting=false;});
+
+const keys={};
+document.addEventListener('keydown',e=>{keys[e.key]=true;if(e.key===' ')e.preventDefault();});
+document.addEventListener('keyup',e=>{keys[e.key]=false;});
+
+// --- Spawning ---
+function getSegAt(worldY){
+  const idx=Math.floor(worldY/SEG_H);
+  if(idx<0||idx>=riverSegments.length)return{left:100,right:300};
+  return riverSegments[idx];
+}
+
+function spawnEnemy(){
+  const worldY=riverY+H/SCALE+100;
+  const seg=getSegAt(worldY/SEG_H|0);
+  const minX=seg.left+20,maxX=seg.right-20;
+  if(maxX<=minX)return;
+  const difficulty=Math.min(distanceTraveled/8000,1);
+  const roll=Math.random();
+  let type;
+  if(roll<0.35)type='boat';
+  else if(roll<0.6)type='heli';
+  else if(roll<0.8)type='jet';
+  else type='turret';
+  const ex=minX+Math.random()*(maxX-minX);
+  enemies.push({
+    x:ex,y:worldY,type,
+    hp:type==='turret'?2:1,
+    w:type==='boat'?24:type==='heli'?20:type==='jet'?16:18,
+    h:type==='boat'?12:type==='heli'?16:type==='jet'?20:14,
+    speed:type==='boat'?0:type==='heli'?0.4+difficulty*0.4:type==='jet'?-1-difficulty:0,
+    moveDir:Math.random()<0.5?-1:1,
+    moveRange:20+Math.random()*20,
+    originX:ex,
+    shootTimer:type==='turret'?60+Math.random()*60:999,
+    flash:0
+  });
+}
+
+function spawnFuel(){
+  const worldY=riverY+H/SCALE+80;
+  const seg=getSegAt(worldY/SEG_H|0);
+  const fx=seg.left+30+Math.random()*(seg.right-seg.left-60);
+  fuelDepots.push({x:fx,y:worldY,w:20,h:14,collected:false});
+}
+
+// --- Explosions & particles ---
+function boom(x,y,big){
+  explosions.push({x,y,r:0,maxR:big?30:18,life:big?18:12,maxLife:big?18:12});
+  for(let i=0;i<(big?16:8);i++){
+    const a=Math.random()*Math.PI*2;
+    const sp=1+Math.random()*(big?4:2.5);
+    particles.push({x,y,vx:Math.cos(a)*sp,vy:Math.sin(a)*sp,life:10+Math.random()*10,
+      maxLife:20,color:['#ff4444','#ffaa22','#ffdd44','#ffffff'][Math.random()*4|0],size:1+Math.random()*2});
+  }
+}
+
+// --- HUD ---
+function updateHUD(){
+  document.getElementById('score').textContent=score;
+  document.getElementById('hiScore').textContent=hiScore;
+  document.getElementById('lives').textContent=lives;
+  document.getElementById('streak').textContent=streak;
+  const pct=Math.max(0,Math.min(100,fuel));
+  const fill=document.getElementById('fuelFill');
+  fill.style.width=pct+'%';
+  fill.style.background=pct<25?'#ef4444':pct<50?'#f59e0b':'linear-gradient(90deg,#3b82f6,#60a5fa)';
+}
+
+// --- Main loop ---
+let lastTime=0,frameCt=0;
+function gameLoop(time){
+  if(!gameActive)return;
+  const dt=Math.min(time-lastTime,33);
+  lastTime=time;
+  frameCt++;
+
+  // Speed increases over time
+  speed=2+Math.min(distanceTraveled/3000,3);
+
+  // --- Input ---
+  if(player.alive){
+    if(touchX!==null){
+      const localX=(touchX-OX)/SCALE;
+      player.targetX+=(localX-player.targetX)*0.12;
+    }
+    if(keys['ArrowLeft']||keys['a'])player.targetX-=3;
+    if(keys['ArrowRight']||keys['d'])player.targetX+=3;
+    player.targetX=Math.max(10,Math.min(390,player.targetX));
+    player.x+=(player.targetX-player.x)*0.15;
+
+    // Shooting
+    if(player.shootCooldown>0)player.shootCooldown--;
+    if((isShooting||keys[' ']||keys['ArrowUp']||keys['w'])&&player.shootCooldown<=0){
+      bullets.push({x:player.x,y:riverY+H/SCALE-70,friendly:true});
+      player.shootCooldown=8;
+      playSound('shoot');
+    }
+  }else{
+    player.respawnTimer--;
+    if(player.respawnTimer<=0){
+      if(lives>0){player.alive=true;player.flash=30;player.x=200;player.targetX=200;}
+      else{endGame();return;}
+    }
+  }
+  if(player.flash>0)player.flash--;
+
+  // Scroll
+  riverY+=speed;
+  distanceTraveled+=speed;
+  fuel-=0.03+speed*0.005;
+  if(fuel<=0&&player.alive){playerDie();fuel=0;}
+
+  // Extend river
+  const neededSegs=Math.ceil((riverY+H/SCALE+200)/SEG_H);
+  if(neededSegs>riverSegments.length)extendRiver(neededSegs-riverSegments.length+10);
+
+  // Spawn enemies
+  spawnTimer-=speed;
+  if(spawnTimer<=0){spawnEnemy();spawnTimer=80+Math.random()*60-Math.min(distanceTraveled/200,40);}
+  fuelSpawnTimer-=speed;
+  if(fuelSpawnTimer<=0){spawnFuel();fuelSpawnTimer=300+Math.random()*200;}
+
+  // Engine sound
+  engineTimer-=dt;
+  if(engineTimer<=0&&player.alive){playSound('engine');engineTimer=120;}
+
+  // --- Bullets ---
+  bullets.forEach(b=>{b.y-=b.friendly?6:-3;});
+  bullets=bullets.filter(b=>b.y>riverY-20&&b.y<riverY+H/SCALE+20);
+
+  // --- Enemies ---
+  enemies.forEach(en=>{
+    en.y-=en.speed;
+    if(en.type==='heli'||en.type==='boat'){
+      en.x=en.originX+Math.sin(frameCt*0.03*en.moveDir)*en.moveRange;
+    }
+    if(en.flash>0)en.flash--;
+    // Turret shooting
+    if(en.type==='turret'&&player.alive){
+      en.shootTimer--;
+      if(en.shootTimer<=0){
+        en.shootTimer=50+Math.random()*40;
+        bullets.push({x:en.x,y:en.y,friendly:false});
+        playSound('hit');
+      }
+    }
+  });
+
+  // Bullet-enemy collisions
+  bullets.forEach(b=>{
+    if(!b.friendly)return;
+    enemies.forEach(en=>{
+      if(en.hp<=0)return;
+      if(Math.abs(b.x-en.x)<en.w/2+3&&Math.abs(b.y-en.y)<en.h/2+3){
+        b.y=-9999;
+        en.hp--;en.flash=4;
+        if(en.hp<=0){
+          streak++;
+          const pts=en.type==='turret'?60:en.type==='jet'?40:en.type==='heli'?30:20;
+          score+=pts*(1+Math.floor(streak/5)*0.5);
+          score=Math.round(score);
+          boom(en.x,en.y,en.type==='turret');
+          playSound('explode');
+          shakeAmt=4+Math.min(streak,10);shakeTime=6;
+          if(streak%10===0){playSound('bonus');shakeAmt=8;}
+          updateHUD();
+        }else{playSound('hit');}
+      }
+    });
+  });
+  enemies=enemies.filter(en=>en.hp>0&&en.y>riverY-40);
+
+  // Fuel depots
+  fuelDepots.forEach(fd=>{
+    if(fd.collected)return;
+    if(player.alive&&Math.abs(player.x-fd.x)<(fd.w/2+8)&&Math.abs((riverY+H/SCALE-60)-fd.y)<(fd.h/2+10)){
+      fd.collected=true;
+      fuel=Math.min(100,fuel+30);
+      score+=50;
+      playSound('fuel');
+      boom(fd.x,fd.y,false);
+      updateHUD();
+    }
+  });
+  fuelDepots=fuelDepots.filter(fd=>!fd.collected&&fd.y>riverY-20);
+
+  // Enemy bullet hits player
+  if(player.alive&&player.flash<=0){
+    bullets.forEach(b=>{
+      if(b.friendly)return;
+      if(Math.abs(b.x-player.x)<10&&Math.abs(b.y-(riverY+H/SCALE-60))<12){
+        b.y=-9999;playerDie();
+      }
+    });
+  }
+
+  // River bank collision
+  if(player.alive&&player.flash<=0){
+    const seg=getSegAt(Math.floor((riverY+H/SCALE-60)/SEG_H));
+    if(player.x<seg.left+6||player.x>seg.right-6){
+      playerDie();
+    }
+  }
+
+  // Enemy body collision
+  if(player.alive&&player.flash<=0){
+    enemies.forEach(en=>{
+      if(en.hp<=0)return;
+      const py=riverY+H/SCALE-60;
+      if(Math.abs(player.x-en.x)<(en.w/2+6)&&Math.abs(py-en.y)<(en.h/2+8)){
+        en.hp=0;boom(en.x,en.y,true);playSound('explode');
+        playerDie();
+      }
+    });
+  }
+
+  // Particles
+  particles.forEach(p=>{p.x+=p.vx;p.y+=p.vy;p.vx*=0.96;p.vy*=0.96;p.life--;});
+  particles=particles.filter(p=>p.life>0);
+
+  // Explosions
+  explosions.forEach(ex=>{ex.life--;ex.r=ex.maxR*(1-ex.life/ex.maxLife);});
+  explosions=explosions.filter(ex=>ex.life>0);
+
+  // Shake
+  if(shakeTime>0)shakeTime--;else shakeAmt*=0.85;
+
+  // --- DRAW ---
+  ctx.save();
+  if(shakeAmt>0.5){
+    ctx.translate((Math.random()-0.5)*shakeAmt*SCALE,(Math.random()-0.5)*shakeAmt*SCALE);
+  }
+  ctx.fillStyle='#0a1628';
+  ctx.fillRect(0,0,W,H);
+
+  // Draw river and banks
+  const startSeg=Math.floor(riverY/SEG_H);
+  const visibleSegs=Math.ceil(H/(SEG_H*SCALE))+2;
+  for(let i=0;i<visibleSegs;i++){
+    const idx=startSeg+i;
+    if(idx<0||idx>=riverSegments.length)continue;
+    const seg=riverSegments[idx];
+    const sy=H-(idx*SEG_H-riverY)*SCALE;
+    const sh=SEG_H*SCALE+1;
+
+    // Left bank
+    ctx.fillStyle=(idx%2===0)?'#1a4a1a':'#165016';
+    ctx.fillRect(OX,sy-sh,seg.left*SCALE,sh);
+    // Right bank
+    ctx.fillRect(OX+seg.right*SCALE,sy-sh,(400-seg.right)*SCALE,sh);
+    // Water
+    const waterBright=((idx+frameCt/8|0)%3===0)?'#0e2a4a':'#0a1e3a';
+    ctx.fillStyle=waterBright;
+    ctx.fillRect(OX+seg.left*SCALE,sy-sh,(seg.right-seg.left)*SCALE,sh);
+    // Bank edges (dirt)
+    ctx.fillStyle='#4a3a1a';
+    ctx.fillRect(OX+(seg.left-2)*SCALE,sy-sh,4*SCALE,sh);
+    ctx.fillRect(OX+(seg.right-2)*SCALE,sy-sh,4*SCALE,sh);
+  }
+
+  // Clip to game area for entities
+  ctx.save();
+  ctx.beginPath();
+  ctx.rect(OX,0,GW,H);
+  ctx.clip();
+
+  // Fuel depots
+  fuelDepots.forEach(fd=>{
+    const sx=OX+fd.x*SCALE;
+    const sy=H-(fd.y-riverY)*SCALE;
+    ctx.fillStyle='#22cc44';
+    ctx.fillRect(sx-fd.w/2*SCALE,sy-fd.h/2*SCALE,fd.w*SCALE,fd.h*SCALE);
+    ctx.fillStyle='#ffffff';
+    ctx.font=`bold ${8*SCALE}px Courier New`;
+    ctx.textAlign='center';
+    ctx.fillText('F',sx,sy+3*SCALE);
+  });
+
+  // Enemies
+  enemies.forEach(en=>{
+    if(en.hp<=0)return;
+    const sx=OX+en.x*SCALE;
+    const sy=H-(en.y-riverY)*SCALE;
+    const flash=en.flash>0;
+    if(en.type==='boat'){
+      ctx.fillStyle=flash?'#fff':'#884422';
+      ctx.fillRect(sx-en.w/2*SCALE,sy-en.h/2*SCALE,en.w*SCALE,en.h*SCALE);
+      ctx.fillStyle='#aa6633';
+      ctx.fillRect(sx-2*SCALE,sy-en.h/2*SCALE-4*SCALE,4*SCALE,4*SCALE);
+    }else if(en.type==='heli'){
+      ctx.fillStyle=flash?'#fff':'#666688';
+      ctx.beginPath();
+      ctx.moveTo(sx,sy-en.h/2*SCALE);
+      ctx.lineTo(sx+en.w/2*SCALE,sy+en.h/2*SCALE);
+      ctx.lineTo(sx-en.w/2*SCALE,sy+en.h/2*SCALE);
+      ctx.closePath();ctx.fill();
+      // Rotor
+      const rw=(frameCt%4<2)?en.w:en.w*0.5;
+      ctx.strokeStyle='#aaaacc';ctx.lineWidth=SCALE;
+      ctx.beginPath();ctx.moveTo(sx-rw/2*SCALE,sy-en.h/2*SCALE-2*SCALE);
+      ctx.lineTo(sx+rw/2*SCALE,sy-en.h/2*SCALE-2*SCALE);ctx.stroke();
+    }else if(en.type==='jet'){
+      ctx.fillStyle=flash?'#fff':'#cc3333';
+      ctx.beginPath();
+      ctx.moveTo(sx,sy-en.h/2*SCALE);
+      ctx.lineTo(sx+en.w/2*SCALE,sy+en.h/2*SCALE);
+      ctx.lineTo(sx+3*SCALE,sy+en.h/4*SCALE);
+      ctx.lineTo(sx-3*SCALE,sy+en.h/4*SCALE);
+      ctx.lineTo(sx-en.w/2*SCALE,sy+en.h/2*SCALE);
+      ctx.closePath();ctx.fill();
+      // Wings
+      ctx.fillRect(sx-en.w*0.6*SCALE,sy,en.w*1.2*SCALE,3*SCALE);
+    }else if(en.type==='turret'){
+      ctx.fillStyle=flash?'#fff':'#555555';
+      ctx.fillRect(sx-en.w/2*SCALE,sy-en.h/2*SCALE,en.w*SCALE,en.h*SCALE);
+      ctx.fillStyle='#ff4444';
+      ctx.beginPath();
+      ctx.arc(sx,sy,4*SCALE,0,Math.PI*2);ctx.fill();
+    }
+  });
+
+  // Bullets
+  bullets.forEach(b=>{
+    const sx=OX+b.x*SCALE;
+    const sy=H-(b.y-riverY)*SCALE;
+    if(b.friendly){
+      ctx.fillStyle='#ffdd44';
+      ctx.shadowColor='#ffdd44';ctx.shadowBlur=6*SCALE;
+      ctx.fillRect(sx-1.5*SCALE,sy-4*SCALE,3*SCALE,8*SCALE);
+      ctx.shadowBlur=0;
+    }else{
+      ctx.fillStyle='#ff4444';
+      ctx.shadowColor='#ff4444';ctx.shadowBlur=4*SCALE;
+      ctx.beginPath();ctx.arc(sx,sy,2.5*SCALE,0,Math.PI*2);ctx.fill();
+      ctx.shadowBlur=0;
+    }
+  });
+
+  // Explosions
+  explosions.forEach(ex=>{
+    const sx=OX+ex.x*SCALE;
+    const sy=H-(ex.y-riverY)*SCALE;
+    const a=ex.life/ex.maxLife;
+    ctx.globalAlpha=a;
+    ctx.fillStyle='#ffaa22';
+    ctx.beginPath();ctx.arc(sx,sy,ex.r*SCALE,0,Math.PI*2);ctx.fill();
+    ctx.fillStyle='#ffdd66';
+    ctx.beginPath();ctx.arc(sx,sy,ex.r*0.5*SCALE,0,Math.PI*2);ctx.fill();
+    ctx.globalAlpha=1;
+  });
+
+  // Particles
+  particles.forEach(pt=>{
+    const sx=OX+pt.x*SCALE;
+    const sy=H-(pt.y-riverY)*SCALE;
+    ctx.globalAlpha=pt.life/pt.maxLife;
+    ctx.fillStyle=pt.color;
+    ctx.fillRect(sx-pt.size*SCALE*0.5,sy-pt.size*SCALE*0.5,pt.size*SCALE,pt.size*SCALE);
+    ctx.globalAlpha=1;
+  });
+
+  // Player
+  if(player.alive&&!(player.flash>0&&Math.floor(player.flash/3)%2===0)){
+    const px=OX+player.x*SCALE;
+    const py=H-((riverY+H/SCALE-60)-riverY)*SCALE;
+    // Shadow
+    ctx.fillStyle='rgba(0,0,0,0.3)';
+    ctx.beginPath();ctx.ellipse(px,py+10*SCALE,10*SCALE,3*SCALE,0,0,Math.PI*2);ctx.fill();
+    // Fuselage
+    ctx.fillStyle='#4488ee';
+    ctx.beginPath();
+    ctx.moveTo(px,py-16*SCALE);
+    ctx.lineTo(px+8*SCALE,py+10*SCALE);
+    ctx.lineTo(px+3*SCALE,py+6*SCALE);
+    ctx.lineTo(px-3*SCALE,py+6*SCALE);
+    ctx.lineTo(px-8*SCALE,py+10*SCALE);
+    ctx.closePath();ctx.fill();
+    // Wings
+    ctx.fillStyle='#3366cc';
+    ctx.fillRect(px-14*SCALE,py-2*SCALE,28*SCALE,4*SCALE);
+    // Cockpit
+    ctx.fillStyle='#aaddff';
+    ctx.beginPath();ctx.arc(px,py-6*SCALE,3*SCALE,0,Math.PI*2);ctx.fill();
+    // Exhaust
+    if(frameCt%4<2){
+      ctx.fillStyle='#ff8800';
+      ctx.fillRect(px-2*SCALE,py+8*SCALE,4*SCALE,6*SCALE);
+    }else{
+      ctx.fillStyle='#ffcc00';
+      ctx.fillRect(px-1.5*SCALE,py+8*SCALE,3*SCALE,4*SCALE);
+    }
+  }
+
+  ctx.restore();
+
+  // Side borders (cover overflow)
+  ctx.fillStyle='#000';
+  ctx.fillRect(0,0,OX,H);
+  ctx.fillRect(OX+GW,0,OX+10,H);
+
+  ctx.restore();
+
+  updateHUD();
+  requestAnimationFrame(gameLoop);
+}
+
+function playerDie(){
+  if(!player.alive)return;
+  player.alive=false;
+  lives--;
+  streak=0;
+  player.respawnTimer=90;
+  boom(player.x,riverY+H/SCALE-60,true);
+  playSound('die');
+  shakeAmt=12;shakeTime=15;
+  fuel=Math.min(100,fuel+20);
+  updateHUD();
+}
+
+function endGame(){
+  gameActive=false;
+  hiScore=Math.max(hiScore,score);
+  document.getElementById('gameUI').classList.add('hidden');
+  document.getElementById('finalInfo').textContent=`Score: ${score}`;
+  document.getElementById('finalStats').textContent=`Distance: ${Math.floor(distanceTraveled)}m | Best streak: x${streak}`;
+  document.getElementById('gameOver').classList.remove('hidden');
+}
+</script>
+</body>
+</html>
