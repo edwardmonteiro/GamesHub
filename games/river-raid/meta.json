@@ -1,0 +1,13 @@
+{
+  "title": "River Raid",
+  "description": "Fly your jet up the river! Dodge banks, destroy enemies, collect fuel. Classic vertical shooter reborn.",
+  "category": "Arcade",
+  "tags": ["shooter", "retro", "8bit", "classic", "vertical-scroller"],
+  "author": "GamesHub",
+  "date": "2026-03-07",
+  "version": "1.0.0",
+  "controls": "Tap sides or tilt to steer, Tap center to shoot",
+  "difficulty": "Medium",
+  "thumbnail": "",
+  "color": "#3b82f6"
+}

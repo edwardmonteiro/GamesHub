@@ -78,9 +78,72 @@
       "color": "#f59e0b",
       "slug": "pong",
       "path": "games/pong"
+    },
+    {
+      "title": "Guilty Hero",
+      "description": "Slash through waves of shadow enemies in this isometric hack-and-slash. Chain combos, unleash specials, survive the guilt!",
+      "category": "Action",
+      "tags": [
+        "action",
+        "hack-and-slash",
+        "retro",
+        "8bit",
+        "isometric"
+      ],
+      "author": "GamesHub",
+      "date": "2026-03-07",
+      "version": "1.0.0",
+      "controls": "Tap/Click to attack, Swipe/Drag to move, Double-tap for special",
+      "difficulty": "Medium",
+      "thumbnail": "",
+      "color": "#ef4444",
+      "slug": "guilty-hero",
+      "path": "games/guilty-hero"
+    },
+    {
+      "title": "River Raid",
+      "description": "Fly your jet up the river! Dodge banks, destroy enemies, collect fuel. Classic vertical shooter reborn.",
+      "category": "Arcade",
+      "tags": [
+        "shooter",
+        "retro",
+        "8bit",
+        "classic",
+        "vertical-scroller"
+      ],
+      "author": "GamesHub",
+      "date": "2026-03-07",
+      "version": "1.0.0",
+      "controls": "Tap sides or tilt to steer, Tap center to shoot",
+      "difficulty": "Medium",
+      "thumbnail": "",
+      "color": "#3b82f6",
+      "slug": "river-raid",
+      "path": "games/river-raid"
+    },
+    {
+      "title": "Abyssal Tetris",
+      "description": "Tetris falling into an infinite isometric abyss. The camera rotates in 3D, speed shifts up and down. How deep can you go?",
+      "category": "Puzzle",
+      "tags": [
+        "tetris",
+        "isometric",
+        "3d",
+        "8bit",
+        "infinite"
+      ],
+      "author": "GamesHub",
+      "date": "2026-03-07",
+      "version": "1.0.0",
+      "controls": "Swipe Left/Right to move, Swipe Down to drop, Tap to rotate, Pinch to change view",
+      "difficulty": "Medium",
+      "thumbnail": "",
+      "color": "#8b5cf6",
+      "slug": "abyssal-tetris",
+      "path": "games/abyssal-tetris"
     }
   ],
-  "count": 4,
+  "count": 6,
   "categories": [
     "Action",
     "Arcade",
