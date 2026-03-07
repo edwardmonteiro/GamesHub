@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Snake Classic</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { background: #0a0a0a; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; font-family: 'Courier New', monospace; color: #22c55e; overflow: hidden; }
+  canvas { border: 2px solid #22c55e; border-radius: 4px; }
+  .hud { display: flex; justify-content: space-between; width: 400px; padding: 10px 0; font-size: 16px; }
+  .screen { position: absolute; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 20px; }
+  .screen h1 { font-size: 36px; text-shadow: 0 0 20px #22c55e; }
+  .screen p { font-size: 14px; opacity: 0.7; }
+  .btn { background: none; border: 2px solid #22c55e; color: #22c55e; padding: 12px 32px; font-size: 18px; font-family: inherit; cursor: pointer; border-radius: 4px; transition: all 0.2s; }
+  .btn:hover { background: #22c55e; color: #0a0a0a; }
+  .hidden { display: none !important; }
+</style>
+</head>
+<body>
+
+<div id="titleScreen" class="screen">
+  <h1>SNAKE</h1>
+  <p>Eat. Grow. Survive.</p>
+  <button class="btn" onclick="startGame()">PLAY</button>
+  <p>Arrow Keys or WASD</p>
+</div>
+
+<div id="gameOver" class="screen hidden">
+  <h1>GAME OVER</h1>
+  <p id="finalScore"></p>
+  <button class="btn" onclick="startGame()">REPLAY</button>
+</div>
+
+<div id="gameUI" class="hidden">
+  <div class="hud">
+    <span>SCORE: <span id="score">0</span></span>
+    <span>HIGH: <span id="high">0</span></span>
+  </div>
+  <canvas id="c" width="400" height="400"></canvas>
+</div>
+
+<script>
+const canvas = document.getElementById('c');
+const ctx = canvas.getContext('2d');
+const GRID = 20, CELL = canvas.width / GRID;
+let snake, dir, nextDir, food, score, highScore = 0, gameLoop, state = 'title';
+
+function startGame() {
+  document.getElementById('titleScreen').classList.add('hidden');
+  document.getElementById('gameOver').classList.add('hidden');
+  document.getElementById('gameUI').classList.remove('hidden');
+  snake = [{x: 10, y: 10}];
+  dir = {x: 1, y: 0};
+  nextDir = {x: 1, y: 0};
+  score = 0;
+  document.getElementById('score').textContent = 0;
+  placeFood();
+  state = 'play';
+  if (gameLoop) clearInterval(gameLoop);
+  gameLoop = setInterval(update, 120);
+}
+
+function placeFood() {
+  do {
+    food = {x: Math.floor(Math.random() * GRID), y: Math.floor(Math.random() * GRID)};
+  } while (snake.some(s => s.x === food.x && s.y === food.y));
+}
+
+function update() {
+  dir = nextDir;
+  const head = {x: snake[0].x + dir.x, y: snake[0].y + dir.y};
+  if (head.x < 0 || head.x >= GRID || head.y < 0 || head.y >= GRID || snake.some(s => s.x === head.x && s.y === head.y)) {
+    clearInterval(gameLoop);
+    state = 'over';
+    highScore = Math.max(highScore, score);
+    document.getElementById('high').textContent = highScore;
+    document.getElementById('finalScore').textContent = `Score: ${score}`;
+    document.getElementById('gameUI').classList.add('hidden');
+    document.getElementById('gameOver').classList.remove('hidden');
+    return;
+  }
+  snake.unshift(head);
+  if (head.x === food.x && head.y === food.y) {
+    score++;
+    document.getElementById('score').textContent = score;
+    placeFood();
+  } else {
+    snake.pop();
+  }
+  draw();
+}
+
+function draw() {
+  ctx.fillStyle = '#0a0a0a';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  // Food
+  ctx.fillStyle = '#ef4444';
+  ctx.shadowColor = '#ef4444';
+  ctx.shadowBlur = 10;
+  ctx.beginPath();
+  ctx.arc(food.x * CELL + CELL/2, food.y * CELL + CELL/2, CELL/2 - 2, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.shadowBlur = 0;
+  // Snake
+  snake.forEach((s, i) => {
+    const brightness = 1 - (i / snake.length) * 0.5;
+    ctx.fillStyle = `rgba(34, 197, 94, ${brightness})`;
+    ctx.fillRect(s.x * CELL + 1, s.y * CELL + 1, CELL - 2, CELL - 2);
+  });
+}
+
+document.addEventListener('keydown', e => {
+  const map = {
+    ArrowUp: {x:0,y:-1}, ArrowDown: {x:0,y:1}, ArrowLeft: {x:-1,y:0}, ArrowRight: {x:1,y:0},
+    w: {x:0,y:-1}, s: {x:0,y:1}, a: {x:-1,y:0}, d: {x:1,y:0},
+    W: {x:0,y:-1}, S: {x:0,y:1}, A: {x:-1,y:0}, D: {x:1,y:0}
+  };
+  const nd = map[e.key];
+  if (nd && (nd.x + dir.x !== 0 || nd.y + dir.y !== 0)) {
+    nextDir = nd;
+    e.preventDefault();
+  }
+});
+</script>
+</body>
+</html>

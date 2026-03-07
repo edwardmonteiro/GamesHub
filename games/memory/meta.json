@@ -1,0 +1,13 @@
+{
+  "title": "Memory Cards",
+  "description": "Flip cards and find matching pairs. Train your memory with increasing difficulty!",
+  "category": "Puzzle",
+  "tags": ["memory", "cards", "brain"],
+  "author": "GamesHub",
+  "date": "2026-03-06",
+  "version": "1.0.0",
+  "controls": "Mouse click to flip cards",
+  "difficulty": "Medium",
+  "thumbnail": "",
+  "color": "#8b5cf6"
+}

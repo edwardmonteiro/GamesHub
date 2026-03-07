@@ -1,0 +1,67 @@
+{
+  "generated": "2026-03-07T03:39:00Z",
+  "games": [
+    {
+      "title": "Snake Classic",
+      "description": "The classic snake game. Eat food, grow longer, don't hit the walls or yourself!",
+      "category": "Arcade",
+      "tags": [
+        "classic",
+        "retro",
+        "casual"
+      ],
+      "author": "GamesHub",
+      "date": "2026-03-07",
+      "version": "1.0.0",
+      "controls": "Arrow Keys or WASD to move",
+      "difficulty": "Easy",
+      "thumbnail": "",
+      "color": "#22c55e",
+      "slug": "snake",
+      "path": "games/snake"
+    },
+    {
+      "title": "Memory Cards",
+      "description": "Flip cards and find matching pairs. Train your memory with increasing difficulty!",
+      "category": "Puzzle",
+      "tags": [
+        "memory",
+        "cards",
+        "brain"
+      ],
+      "author": "GamesHub",
+      "date": "2026-03-06",
+      "version": "1.0.0",
+      "controls": "Mouse click to flip cards",
+      "difficulty": "Medium",
+      "thumbnail": "",
+      "color": "#8b5cf6",
+      "slug": "memory",
+      "path": "games/memory"
+    },
+    {
+      "title": "Pong",
+      "description": "The original arcade classic. Play against the CPU in this timeless table tennis game.",
+      "category": "Arcade",
+      "tags": [
+        "classic",
+        "retro",
+        "multiplayer"
+      ],
+      "author": "GamesHub",
+      "date": "2026-03-05",
+      "version": "1.0.0",
+      "controls": "Arrow Up/Down or W/S to move paddle",
+      "difficulty": "Easy",
+      "thumbnail": "",
+      "color": "#f59e0b",
+      "slug": "pong",
+      "path": "games/pong"
+    }
+  ],
+  "count": 3,
+  "categories": [
+    "Arcade",
+    "Puzzle"
+  ]
+}

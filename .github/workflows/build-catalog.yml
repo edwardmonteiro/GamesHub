@@ -1,0 +1,50 @@
+name: Build Games Catalog
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'games/**'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build-catalog:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build games-catalog.json
+        run: |
+          echo '{ "generated": "'$(date -u +%Y-%m-%dT%H:%M:%SZ)'", "games": [' > catalog_tmp.json
+          first=true
+          for meta in games/*/meta.json; do
+            [ -f "$meta" ] || continue
+            dir=$(dirname "$meta")
+            slug=$(basename "$dir")
+            # Verify index.html exists
+            [ -f "$dir/index.html" ] || continue
+            if [ "$first" = true ]; then
+              first=false
+            else
+              echo ',' >> catalog_tmp.json
+            fi
+            # Inject slug and path into each meta entry
+            jq --arg slug "$slug" --arg path "$dir" '. + {slug: $slug, path: $path}' "$meta" >> catalog_tmp.json
+          done
+          echo ']}' >> catalog_tmp.json
+          # Sort by date descending and add count
+          jq '.games |= (sort_by(.date) | reverse) | .count = (.games | length) | .categories = ([.games[].category] | unique)' catalog_tmp.json > games-catalog.json
+          rm catalog_tmp.json
+          cat games-catalog.json
+
+      - name: Commit catalog
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add games-catalog.json
+          git diff --staged --quiet && echo "No changes" && exit 0
+          git commit -m "chore: auto-update games catalog"
+          git push

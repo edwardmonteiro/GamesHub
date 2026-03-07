@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Memory Cards</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { background: #0a0a0a; display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; font-family: 'Courier New', monospace; color: #8b5cf6; overflow: hidden; }
+  .screen { position: absolute; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 20px; }
+  .screen h1 { font-size: 36px; text-shadow: 0 0 20px #8b5cf6; }
+  .screen p { font-size: 14px; opacity: 0.7; }
+  .btn { background: none; border: 2px solid #8b5cf6; color: #8b5cf6; padding: 12px 32px; font-size: 18px; font-family: inherit; cursor: pointer; border-radius: 4px; transition: all 0.2s; }
+  .btn:hover { background: #8b5cf6; color: #0a0a0a; }
+  .hidden { display: none !important; }
+  .hud { display: flex; gap: 30px; padding: 15px 0; font-size: 16px; }
+  .board { display: grid; grid-template-columns: repeat(4, 80px); gap: 10px; perspective: 600px; }
+  .card { width: 80px; height: 100px; cursor: pointer; position: relative; transform-style: preserve-3d; transition: transform 0.4s; }
+  .card.flipped { transform: rotateY(180deg); }
+  .card.matched { opacity: 0.5; pointer-events: none; }
+  .card-face { position: absolute; width: 100%; height: 100%; border-radius: 8px; display: flex; align-items: center; justify-content: center; backface-visibility: hidden; font-size: 32px; }
+  .card-back { background: linear-gradient(135deg, #1e1b4b, #312e81); border: 2px solid #8b5cf6; }
+  .card-back::after { content: '?'; font-size: 28px; opacity: 0.5; }
+  .card-front { background: #1a1a2e; border: 2px solid #8b5cf6; transform: rotateY(180deg); }
+</style>
+</head>
+<body>
+
+<div id="titleScreen" class="screen">
+  <h1>MEMORY</h1>
+  <p>Find all matching pairs</p>
+  <button class="btn" onclick="startGame()">PLAY</button>
+  <p>Click cards to flip them</p>
+</div>
+
+<div id="winScreen" class="screen hidden">
+  <h1>YOU WIN!</h1>
+  <p id="finalStats"></p>
+  <button class="btn" onclick="startGame()">PLAY AGAIN</button>
+</div>
+
+<div id="gameUI" class="hidden" style="display:flex;flex-direction:column;align-items:center;">
+  <div class="hud">
+    <span>MOVES: <span id="moves">0</span></span>
+    <span>PAIRS: <span id="pairs">0</span>/8</span>
+  </div>
+  <div class="board" id="board"></div>
+</div>
+
+<script>
+const EMOJIS = ['🎮','🕹️','👾','🎯','🏆','⚡','🔥','💎','🎲','🌟','🚀','🎪'];
+let cards, flipped, matched, moves, locked;
+
+function shuffle(arr) {
+  for (let i = arr.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+  }
+  return arr;
+}
+
+function startGame() {
+  document.getElementById('titleScreen').classList.add('hidden');
+  document.getElementById('winScreen').classList.add('hidden');
+  document.getElementById('gameUI').classList.remove('hidden');
+
+  const picked = shuffle([...EMOJIS]).slice(0, 8);
+  const deck = shuffle([...picked, ...picked]);
+
+  flipped = [];
+  matched = 0;
+  moves = 0;
+  locked = false;
+  document.getElementById('moves').textContent = 0;
+  document.getElementById('pairs').textContent = 0;
+
+  const board = document.getElementById('board');
+  board.innerHTML = '';
+
+  deck.forEach((emoji, i) => {
+    const card = document.createElement('div');
+    card.className = 'card';
+    card.dataset.value = emoji;
+    card.dataset.index = i;
+    card.innerHTML = `
+      <div class="card-face card-back"></div>
+      <div class="card-face card-front">${emoji}</div>
+    `;
+    card.addEventListener('click', () => flipCard(card));
+    board.appendChild(card);
+  });
+}
+
+function flipCard(card) {
+  if (locked || card.classList.contains('flipped') || card.classList.contains('matched')) return;
+
+  card.classList.add('flipped');
+  flipped.push(card);
+
+  if (flipped.length === 2) {
+    moves++;
+    document.getElementById('moves').textContent = moves;
+    locked = true;
+
+    if (flipped[0].dataset.value === flipped[1].dataset.value) {
+      flipped.forEach(c => c.classList.add('matched'));
+      matched++;
+      document.getElementById('pairs').textContent = matched;
+      flipped = [];
+      locked = false;
+
+      if (matched === 8) {
+        setTimeout(() => {
+          document.getElementById('gameUI').classList.add('hidden');
+          document.getElementById('finalStats').textContent = `Completed in ${moves} moves!`;
+          document.getElementById('winScreen').classList.remove('hidden');
+        }, 500);
+      }
+    } else {
+      setTimeout(() => {
+        flipped.forEach(c => c.classList.remove('flipped'));
+        flipped = [];
+        locked = false;
+      }, 800);
+    }
+  }
+}
+</script>
+</body>
+</html>

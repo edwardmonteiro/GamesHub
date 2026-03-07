@@ -1,0 +1,13 @@
+{
+  "title": "Snake Classic",
+  "description": "The classic snake game. Eat food, grow longer, don't hit the walls or yourself!",
+  "category": "Arcade",
+  "tags": ["classic", "retro", "casual"],
+  "author": "GamesHub",
+  "date": "2026-03-07",
+  "version": "1.0.0",
+  "controls": "Arrow Keys or WASD to move",
+  "difficulty": "Easy",
+  "thumbnail": "",
+  "color": "#22c55e"
+}

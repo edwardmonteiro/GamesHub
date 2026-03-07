@@ -1,0 +1,13 @@
+{
+  "title": "Pong",
+  "description": "The original arcade classic. Play against the CPU in this timeless table tennis game.",
+  "category": "Arcade",
+  "tags": ["classic", "retro", "multiplayer"],
+  "author": "GamesHub",
+  "date": "2026-03-05",
+  "version": "1.0.0",
+  "controls": "Arrow Up/Down or W/S to move paddle",
+  "difficulty": "Easy",
+  "thumbnail": "",
+  "color": "#f59e0b"
+}
