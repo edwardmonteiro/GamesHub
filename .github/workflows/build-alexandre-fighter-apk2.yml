@@ -1,0 +1,194 @@
+name: Build Alexandre Fighter V5 APK2
+
+on:
+  push:
+    branches: [alexandre-fighter-v5-apk2]
+    paths:
+      - 'android/alexandre-fighter-v5-apk2/**'
+      - '.github/workflows/build-alexandre-fighter-apk2.yml'
+  workflow_dispatch:
+
+jobs:
+  build-apk:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - uses: android-actions/setup-android@v3
+
+      - name: Install Android SDK 35
+        run: yes | sdkmanager "platforms;android-35" "build-tools;35.0.0" >/dev/null
+
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.9'
+
+      - name: Create Android wrapper
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p apk/app/src/main/java/com/edwardlabs/alexandrefighter
+          mkdir -p apk/app/src/main/assets
+          mkdir -p apk/app/src/main/res/values
+          cp android/alexandre-fighter-v5-apk2/index.html apk/app/src/main/assets/index.html
+
+          cat > apk/settings.gradle <<'EOF'
+          pluginManagement { repositories { google(); mavenCentral(); gradlePluginPortal() } }
+          dependencyResolutionManagement {
+            repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
+            repositories { google(); mavenCentral() }
+          }
+          rootProject.name='AlexandreFighter'
+          include ':app'
+          EOF
+
+          cat > apk/build.gradle <<'EOF'
+          plugins { id 'com.android.application' version '8.7.3' apply false }
+          EOF
+
+          cat > apk/gradle.properties <<'EOF'
+          org.gradle.jvmargs=-Xmx2048m -Dfile.encoding=UTF-8
+          android.useAndroidX=true
+          android.nonTransitiveRClass=true
+          EOF
+
+          cat > apk/app/build.gradle <<'EOF'
+          plugins { id 'com.android.application' }
+          android {
+            namespace 'com.edwardlabs.alexandrefighter'
+            compileSdk 35
+            defaultConfig {
+              applicationId 'com.edwardlabs.alexandrefighter'
+              minSdk 23
+              targetSdk 35
+              versionCode 5
+              versionName '5.0'
+            }
+          }
+          EOF
+
+          cat > apk/app/src/main/res/values/strings.xml <<'EOF'
+          <resources><string name="app_name">Alexandre Fighter</string></resources>
+          EOF
+
+          cat > apk/app/src/main/res/values/styles.xml <<'EOF'
+          <resources>
+            <style name="AppTheme" parent="android:style/Theme.Material.Light.NoActionBar">
+              <item name="android:windowFullscreen">true</item>
+              <item name="android:navigationBarColor">#000000</item>
+              <item name="android:statusBarColor">#000000</item>
+              <item name="android:colorAccent">#FFD33D</item>
+            </style>
+          </resources>
+          EOF
+
+          cat > apk/app/src/main/AndroidManifest.xml <<'EOF'
+          <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+            <application
+              android:allowBackup="true"
+              android:hardwareAccelerated="true"
+              android:label="@string/app_name"
+              android:theme="@style/AppTheme">
+              <activity
+                android:name=".MainActivity"
+                android:configChanges="orientation|screenSize|keyboardHidden"
+                android:exported="true"
+                android:screenOrientation="landscape">
+                <intent-filter>
+                  <action android:name="android.intent.action.MAIN" />
+                  <category android:name="android.intent.category.LAUNCHER" />
+                </intent-filter>
+              </activity>
+            </application>
+          </manifest>
+          EOF
+
+          cat > apk/app/src/main/java/com/edwardlabs/alexandrefighter/MainActivity.java <<'EOF'
+          package com.edwardlabs.alexandrefighter;
+
+          import android.app.Activity;
+          import android.os.Bundle;
+          import android.view.View;
+          import android.view.Window;
+          import android.view.WindowManager;
+          import android.webkit.WebChromeClient;
+          import android.webkit.WebSettings;
+          import android.webkit.WebView;
+          import android.webkit.WebViewClient;
+
+          public class MainActivity extends Activity {
+            private WebView webView;
+
+            @Override
+            protected void onCreate(Bundle savedInstanceState) {
+              super.onCreate(savedInstanceState);
+              requestWindowFeature(Window.FEATURE_NO_TITLE);
+              getWindow().setFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN, WindowManager.LayoutParams.FLAG_FULLSCREEN);
+              getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+              hideSystemUi();
+
+              webView = new WebView(this);
+              setContentView(webView);
+              WebSettings settings = webView.getSettings();
+              settings.setJavaScriptEnabled(true);
+              settings.setDomStorageEnabled(true);
+              settings.setAllowFileAccess(true);
+              settings.setAllowContentAccess(true);
+              settings.setMediaPlaybackRequiresUserGesture(false);
+              settings.setBuiltInZoomControls(false);
+              settings.setDisplayZoomControls(false);
+              webView.setWebViewClient(new WebViewClient());
+              webView.setWebChromeClient(new WebChromeClient());
+              webView.setBackgroundColor(0xFF000000);
+              webView.loadUrl("file:///android_asset/index.html");
+            }
+
+            private void hideSystemUi() {
+              getWindow().getDecorView().setSystemUiVisibility(
+                View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY |
+                View.SYSTEM_UI_FLAG_FULLSCREEN |
+                View.SYSTEM_UI_FLAG_HIDE_NAVIGATION |
+                View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN |
+                View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION |
+                View.SYSTEM_UI_FLAG_LAYOUT_STABLE
+              );
+            }
+
+            @Override
+            public void onWindowFocusChanged(boolean hasFocus) {
+              super.onWindowFocusChanged(hasFocus);
+              if (hasFocus) hideSystemUi();
+            }
+
+            @Override
+            protected void onResume() {
+              super.onResume();
+              if (webView != null) webView.onResume();
+              hideSystemUi();
+            }
+
+            @Override
+            protected void onPause() {
+              if (webView != null) webView.onPause();
+              super.onPause();
+            }
+          }
+          EOF
+
+      - name: Build installable APK
+        working-directory: apk
+        run: gradle :app:assembleDebug --no-daemon
+
+      - name: Rename APK
+        run: cp apk/app/build/outputs/apk/debug/app-debug.apk Alexandre-Fighter-V5.apk
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Alexandre-Fighter-V5-APK
+          path: Alexandre-Fighter-V5.apk
+          if-no-files-found: error
