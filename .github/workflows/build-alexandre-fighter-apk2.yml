@@ -1,4 +1,4 @@
-name: Build Alexandre Fighter V5.2 APK
+name: Build Alexandre Fighter V5.3 APK
 
 on:
   push:
@@ -37,17 +37,36 @@ jobs:
           mkdir -p apk/app/src/main/res/values
 
           cp android/alexandre-fighter-v5-apk2/index.html apk/app/src/main/assets/index.html
+
+          # Patch the game before packaging. V5.2 could deadlock forever if any image failed.
+          python - <<'PY'
+          from pathlib import Path
+          p=Path('apk/app/src/main/assets/index.html')
+          s=p.read_text(encoding='utf-8')
+          old="const I={},src={bg:'assets/stage.jpg',pic:'assets/portrait.jpg',p:'assets/alex_walk.png',e:'assets/enemy_walk.png',b:'assets/boss_sheet.png'};Promise.all(Object.entries(src).map(([k,v])=>new Promise(r=>{let i=new Image;i.onload=()=>{I[k]=i;r()};i.src=v}))).then(()=>{drawMenu();loop(performance.now())});"
+          new="const I={},src={bg:'assets/stage.jpg',p:'assets/alex_walk.png',e:'assets/enemy_walk.png',b:'assets/boss_sheet.png'};Promise.all(Object.entries(src).map(([k,v])=>new Promise(r=>{let i=new Image;i.onload=()=>{I[k]=i;r()};i.onerror=()=>{console.error('asset failed',v);r()};i.src=v}))).then(()=>{drawMenu();loop(performance.now())}).catch(err=>{console.error(err);drawMenu();loop(performance.now())});"
+          if old not in s:
+              raise SystemExit('loader patch pattern not found')
+          s=s.replace(old,new)
+          s=s.replace('<title>Alexandre Fighter V5.1</title>','<title>Alexandre Fighter V5.3</title>')
+          s=s.replace('V5.1 · 10 FASES','V5.3 · 10 FASES')
+          s=s.replace('function sprite(F,im,boss){let n=8,sw=im.width/n,','function sprite(F,im,boss){if(!im)return;let n=8,sw=im.width/n,')
+          s=s.replace("function draw(){if(!I.bg)return;x.drawImage(I.bg,0,0,W,H);", "function draw(){if(I.bg)x.drawImage(I.bg,0,0,W,H);else{x.fillStyle='#10243d';x.fillRect(0,0,W,H);x.fillStyle='#1e5631';x.fillRect(0,360,W,180);} ")
+          p.write_text(s,encoding='utf-8')
+          PY
+
           base64 -d android/alexandre-fighter-v5-apk2/assets_b64/stage.jpg.b64 > apk/app/src/main/assets/assets/stage.jpg
-          base64 -d android/alexandre-fighter-v5-apk2/assets_b64/portrait.jpg.b64 > apk/app/src/main/assets/assets/portrait.jpg
           base64 -d android/alexandre-fighter-v5-apk2/assets_b64/alex_walk.png.b64 > apk/app/src/main/assets/assets/alex_walk.png
           base64 -d android/alexandre-fighter-v5-apk2/assets_b64/enemy_walk.png.b64 > apk/app/src/main/assets/assets/enemy_walk.png
           base64 -d android/alexandre-fighter-v5-apk2/assets_b64/boss_sheet.png.b64 > apk/app/src/main/assets/assets/boss_sheet.png
 
           test -s apk/app/src/main/assets/index.html
-          test -s apk/app/src/main/assets/assets/stage.jpg
-          test -s apk/app/src/main/assets/assets/alex_walk.png
-          test -s apk/app/src/main/assets/assets/enemy_walk.png
-          test -s apk/app/src/main/assets/assets/boss_sheet.png
+          file apk/app/src/main/assets/assets/stage.jpg | grep -q 'JPEG image data'
+          file apk/app/src/main/assets/assets/alex_walk.png | grep -q 'PNG image data'
+          file apk/app/src/main/assets/assets/enemy_walk.png | grep -q 'PNG image data'
+          file apk/app/src/main/assets/assets/boss_sheet.png | grep -q 'PNG image data'
+          grep -q 'V5.3' apk/app/src/main/assets/index.html
+          grep -q "i.onerror" apk/app/src/main/assets/index.html
 
           cat > apk/settings.gradle <<'EOF'
           pluginManagement { repositories { google(); mavenCentral(); gradlePluginPortal() } }
@@ -78,8 +97,8 @@ jobs:
               applicationId 'com.edwardlabs.alexandrefighter'
               minSdk 23
               targetSdk 35
-              versionCode 52
-              versionName '5.2'
+              versionCode 53
+              versionName '5.3'
             }
           }
           EOF
@@ -101,16 +120,8 @@ jobs:
 
           cat > apk/app/src/main/AndroidManifest.xml <<'EOF'
           <manifest xmlns:android="http://schemas.android.com/apk/res/android">
-            <application
-              android:allowBackup="true"
-              android:hardwareAccelerated="true"
-              android:label="@string/app_name"
-              android:theme="@style/AppTheme">
-              <activity
-                android:name=".MainActivity"
-                android:configChanges="orientation|screenSize|keyboardHidden"
-                android:exported="true"
-                android:screenOrientation="landscape">
+            <application android:allowBackup="true" android:hardwareAccelerated="true" android:label="@string/app_name" android:theme="@style/AppTheme">
+              <activity android:name=".MainActivity" android:configChanges="orientation|screenSize|keyboardHidden" android:exported="true" android:screenOrientation="landscape">
                 <intent-filter>
                   <action android:name="android.intent.action.MAIN" />
                   <category android:name="android.intent.category.LAUNCHER" />
@@ -122,7 +133,6 @@ jobs:
 
           cat > apk/app/src/main/java/com/edwardlabs/alexandrefighter/MainActivity.java <<'EOF'
           package com.edwardlabs.alexandrefighter;
-
           import android.app.Activity;
           import android.os.Bundle;
           import android.view.View;
@@ -132,18 +142,14 @@ jobs:
           import android.webkit.WebSettings;
           import android.webkit.WebView;
           import android.webkit.WebViewClient;
-
           public class MainActivity extends Activity {
             private WebView webView;
-
-            @Override
-            protected void onCreate(Bundle savedInstanceState) {
+            @Override protected void onCreate(Bundle savedInstanceState) {
               super.onCreate(savedInstanceState);
               requestWindowFeature(Window.FEATURE_NO_TITLE);
               getWindow().setFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN, WindowManager.LayoutParams.FLAG_FULLSCREEN);
               getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
               hideSystemUi();
-
               webView = new WebView(this);
               setContentView(webView);
               WebSettings settings = webView.getSettings();
@@ -152,43 +158,17 @@ jobs:
               settings.setAllowFileAccess(true);
               settings.setAllowContentAccess(true);
               settings.setMediaPlaybackRequiresUserGesture(false);
-              settings.setBuiltInZoomControls(false);
-              settings.setDisplayZoomControls(false);
               webView.setWebViewClient(new WebViewClient());
               webView.setWebChromeClient(new WebChromeClient());
               webView.setBackgroundColor(0xFF000000);
               webView.loadUrl("file:///android_asset/index.html");
             }
-
             private void hideSystemUi() {
-              getWindow().getDecorView().setSystemUiVisibility(
-                View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY |
-                View.SYSTEM_UI_FLAG_FULLSCREEN |
-                View.SYSTEM_UI_FLAG_HIDE_NAVIGATION |
-                View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN |
-                View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION |
-                View.SYSTEM_UI_FLAG_LAYOUT_STABLE
-              );
+              getWindow().getDecorView().setSystemUiVisibility(View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY|View.SYSTEM_UI_FLAG_FULLSCREEN|View.SYSTEM_UI_FLAG_HIDE_NAVIGATION|View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN|View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION|View.SYSTEM_UI_FLAG_LAYOUT_STABLE);
             }
-
-            @Override
-            public void onWindowFocusChanged(boolean hasFocus) {
-              super.onWindowFocusChanged(hasFocus);
-              if (hasFocus) hideSystemUi();
-            }
-
-            @Override
-            protected void onResume() {
-              super.onResume();
-              if (webView != null) webView.onResume();
-              hideSystemUi();
-            }
-
-            @Override
-            protected void onPause() {
-              if (webView != null) webView.onPause();
-              super.onPause();
-            }
+            @Override public void onWindowFocusChanged(boolean hasFocus) { super.onWindowFocusChanged(hasFocus); if (hasFocus) hideSystemUi(); }
+            @Override protected void onResume() { super.onResume(); if (webView != null) webView.onResume(); hideSystemUi(); }
+            @Override protected void onPause() { if (webView != null) webView.onPause(); super.onPause(); }
           }
           EOF
 
@@ -198,15 +178,15 @@ jobs:
 
       - name: Validate and rename APK
         run: |
-          cp apk/app/build/outputs/apk/debug/app-debug.apk Alexandre-Fighter-V5.2.apk
-          unzip -l Alexandre-Fighter-V5.2.apk | grep -q 'assets/index.html'
-          unzip -l Alexandre-Fighter-V5.2.apk | grep -q 'assets/assets/stage.jpg'
-          unzip -l Alexandre-Fighter-V5.2.apk | grep -q 'assets/assets/alex_walk.png'
-          unzip -l Alexandre-Fighter-V5.2.apk | grep -q 'assets/assets/enemy_walk.png'
-          unzip -l Alexandre-Fighter-V5.2.apk | grep -q 'assets/assets/boss_sheet.png'
+          cp apk/app/build/outputs/apk/debug/app-debug.apk Alexandre-Fighter-V5.3.apk
+          unzip -l Alexandre-Fighter-V5.3.apk | grep -q 'assets/index.html'
+          unzip -l Alexandre-Fighter-V5.3.apk | grep -q 'assets/assets/stage.jpg'
+          unzip -l Alexandre-Fighter-V5.3.apk | grep -q 'assets/assets/alex_walk.png'
+          unzip -l Alexandre-Fighter-V5.3.apk | grep -q 'assets/assets/enemy_walk.png'
+          unzip -l Alexandre-Fighter-V5.3.apk | grep -q 'assets/assets/boss_sheet.png'
 
       - uses: actions/upload-artifact@v4
         with:
-          name: Alexandre-Fighter-V5.2-APK
-          path: Alexandre-Fighter-V5.2.apk
+          name: Alexandre-Fighter-V5.3-APK
+          path: Alexandre-Fighter-V5.3.apk
           if-no-files-found: error
