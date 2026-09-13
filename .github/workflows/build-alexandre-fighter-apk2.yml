@@ -1,4 +1,4 @@
-name: Build Alexandre Fighter V5 APK2
+name: Build Alexandre Fighter V5.2 APK
 
 on:
   push:
@@ -33,9 +33,21 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p apk/app/src/main/java/com/edwardlabs/alexandrefighter
-          mkdir -p apk/app/src/main/assets
+          mkdir -p apk/app/src/main/assets/assets
           mkdir -p apk/app/src/main/res/values
+
           cp android/alexandre-fighter-v5-apk2/index.html apk/app/src/main/assets/index.html
+          base64 -d android/alexandre-fighter-v5-apk2/assets_b64/stage.jpg.b64 > apk/app/src/main/assets/assets/stage.jpg
+          base64 -d android/alexandre-fighter-v5-apk2/assets_b64/portrait.jpg.b64 > apk/app/src/main/assets/assets/portrait.jpg
+          base64 -d android/alexandre-fighter-v5-apk2/assets_b64/alex_walk.png.b64 > apk/app/src/main/assets/assets/alex_walk.png
+          base64 -d android/alexandre-fighter-v5-apk2/assets_b64/enemy_walk.png.b64 > apk/app/src/main/assets/assets/enemy_walk.png
+          base64 -d android/alexandre-fighter-v5-apk2/assets_b64/boss_sheet.png.b64 > apk/app/src/main/assets/assets/boss_sheet.png
+
+          test -s apk/app/src/main/assets/index.html
+          test -s apk/app/src/main/assets/assets/stage.jpg
+          test -s apk/app/src/main/assets/assets/alex_walk.png
+          test -s apk/app/src/main/assets/assets/enemy_walk.png
+          test -s apk/app/src/main/assets/assets/boss_sheet.png
 
           cat > apk/settings.gradle <<'EOF'
           pluginManagement { repositories { google(); mavenCentral(); gradlePluginPortal() } }
@@ -66,8 +78,8 @@ jobs:
               applicationId 'com.edwardlabs.alexandrefighter'
               minSdk 23
               targetSdk 35
-              versionCode 5
-              versionName '5.0'
+              versionCode 52
+              versionName '5.2'
             }
           }
           EOF
@@ -184,11 +196,17 @@ jobs:
         working-directory: apk
         run: gradle :app:assembleDebug --no-daemon
 
-      - name: Rename APK
-        run: cp apk/app/build/outputs/apk/debug/app-debug.apk Alexandre-Fighter-V5.apk
+      - name: Validate and rename APK
+        run: |
+          cp apk/app/build/outputs/apk/debug/app-debug.apk Alexandre-Fighter-V5.2.apk
+          unzip -l Alexandre-Fighter-V5.2.apk | grep -q 'assets/index.html'
+          unzip -l Alexandre-Fighter-V5.2.apk | grep -q 'assets/assets/stage.jpg'
+          unzip -l Alexandre-Fighter-V5.2.apk | grep -q 'assets/assets/alex_walk.png'
+          unzip -l Alexandre-Fighter-V5.2.apk | grep -q 'assets/assets/enemy_walk.png'
+          unzip -l Alexandre-Fighter-V5.2.apk | grep -q 'assets/assets/boss_sheet.png'
 
       - uses: actions/upload-artifact@v4
         with:
-          name: Alexandre-Fighter-V5-APK
-          path: Alexandre-Fighter-V5.apk
+          name: Alexandre-Fighter-V5.2-APK
+          path: Alexandre-Fighter-V5.2.apk
           if-no-files-found: error
