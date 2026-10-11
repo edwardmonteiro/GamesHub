@@ -1,0 +1,19 @@
+{
+  "title": "Ovelha de Giz — O Prado do Lobo",
+  "description": "Aventura de ovelhas e lobos em giz colorido, com uma fase original e controles por toque.",
+  "category": "Arcade",
+  "tags": [
+    "platformer",
+    "ovelha",
+    "giz",
+    "infantil",
+    "offline"
+  ],
+  "author": "Família Lumi",
+  "date": "2026-10-11",
+  "version": "1.0.2",
+  "controls": "Setas para andar; botão PULAR",
+  "difficulty": "Easy",
+  "thumbnail": "",
+  "color": "#84c59b"
+}
