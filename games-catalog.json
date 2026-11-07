@@ -1,6 +1,27 @@
 {
-  "generated": "2026-10-11T18:54:32Z",
+  "generated": "2026-11-07T22:43:27Z",
   "games": [
+    {
+      "title": "Punho de Dragão",
+      "description": "Beat 'em up estilo Double Dragon com o Alexandre de kimono: 10 fases, inimigos variados e 10 chefes.",
+      "category": "Luta",
+      "tags": [
+        "beat em up",
+        "luta",
+        "alexandre",
+        "arcade",
+        "offline"
+      ],
+      "author": "Edward Research Labs",
+      "date": "2026-11-07",
+      "version": "1.0.0",
+      "controls": "Joystick na tela e botões SOCO, CHUTE, PULO, ESPECIAL; teclado J/K/L/U; controle Bluetooth X/Y/A/B",
+      "difficulty": "Medium",
+      "thumbnail": "",
+      "color": "#ff7a1a",
+      "slug": "punho-de-dragao",
+      "path": "games/punho-de-dragao"
+    },
     {
       "title": "Ovelha de Giz — O Prado do Lobo",
       "description": "Aventura de ovelhas e lobos em giz colorido, com uma fase original e controles por toque.",
@@ -143,10 +164,11 @@
       "path": "games/pong"
     }
   ],
-  "count": 7,
+  "count": 8,
   "categories": [
     "Action",
     "Arcade",
+    "Luta",
     "Puzzle"
   ]
 }
