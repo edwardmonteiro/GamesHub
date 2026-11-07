@@ -1,0 +1,34 @@
+plugins { id 'com.android.application' }
+
+android {
+    namespace 'com.edwardlabs.punhodedragao'
+    compileSdk 35
+
+    defaultConfig {
+        applicationId 'com.edwardlabs.punhodedragao'
+        minSdk 26
+        targetSdk 35
+        versionCode 1
+        versionName '1.0.0'
+    }
+
+    // Chave fixa: cada nova versão instala por cima da anterior sem perder o progresso salvo.
+    signingConfigs {
+        fixed {
+            storeFile file('../punho.keystore')
+            storePassword 'android'
+            keyAlias 'punho'
+            keyPassword 'android'
+        }
+    }
+
+    buildTypes {
+        debug { signingConfig signingConfigs.fixed; minifyEnabled false }
+        release { signingConfig signingConfigs.fixed; minifyEnabled false }
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+}

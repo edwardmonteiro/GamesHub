@@ -1,0 +1,19 @@
+{
+  "title": "Punho de Dragão",
+  "description": "Beat 'em up estilo Double Dragon com o Alexandre de kimono: 10 fases, inimigos variados e 10 chefes.",
+  "category": "Luta",
+  "tags": [
+    "beat em up",
+    "luta",
+    "alexandre",
+    "arcade",
+    "offline"
+  ],
+  "author": "Edward Research Labs",
+  "date": "2026-11-07",
+  "version": "1.0.0",
+  "controls": "Joystick na tela e botões SOCO, CHUTE, PULO, ESPECIAL; teclado J/K/L/U; controle Bluetooth X/Y/A/B",
+  "difficulty": "Medium",
+  "thumbnail": "",
+  "color": "#ff7a1a"
+}
