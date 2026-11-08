@@ -1,5 +1,5 @@
 {
-  "generated": "2026-11-07T22:43:27Z",
+  "generated": "2026-11-08T00:05:41Z",
   "games": [
     {
       "title": "Punho de Dragão",
@@ -14,8 +14,8 @@
       ],
       "author": "Edward Research Labs",
       "date": "2026-11-07",
-      "version": "1.0.0",
-      "controls": "Joystick na tela e botões SOCO, CHUTE, PULO, ESPECIAL; teclado J/K/L/U; controle Bluetooth X/Y/A/B",
+      "version": "1.1.0",
+      "controls": "Joystick na tela e botões SOCO, CHUTE, PULO, ESPECIAL; teclado J/K/L/U; controle Bluetooth X/Y/A/B; na TV Android, o celular vira controle pelo QR code",
       "difficulty": "Medium",
       "thumbnail": "",
       "color": "#ff7a1a",
