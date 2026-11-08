@@ -1,5 +1,5 @@
 {
-  "generated": "2026-11-08T00:05:41Z",
+  "generated": "2026-11-08T21:08:04Z",
   "games": [
     {
       "title": "Punho de Dragão",
@@ -20,7 +20,9 @@
       "thumbnail": "",
       "color": "#ff7a1a",
       "slug": "punho-de-dragao",
-      "path": "games/punho-de-dragao"
+      "path": "games/punho-de-dragao",
+      "sha256": "3df434704c4e55e997a133b833b0bbba59a3eb3f895a32340519e94c820aaa9b",
+      "size": 304119
     },
     {
       "title": "Ovelha de Giz — O Prado do Lobo",
@@ -41,7 +43,9 @@
       "thumbnail": "",
       "color": "#84c59b",
       "slug": "ovelha-de-giz",
-      "path": "games/ovelha-de-giz"
+      "path": "games/ovelha-de-giz",
+      "sha256": "0112f5cfb57bec1729118097e099052d9d7602a9b07b4a599675a285e77e688d",
+      "size": 22832
     },
     {
       "title": "Snake Classic",
@@ -60,7 +64,9 @@
       "thumbnail": "",
       "color": "#22c55e",
       "slug": "snake",
-      "path": "games/snake"
+      "path": "games/snake",
+      "sha256": "19c988d1339f25a8b7238e5b1f29445417661e61e6cd2c079f8803cb8bf33bc3",
+      "size": 4379
     },
     {
       "title": "River Raid",
@@ -81,7 +87,9 @@
       "thumbnail": "",
       "color": "#3b82f6",
       "slug": "river-raid",
-      "path": "games/river-raid"
+      "path": "games/river-raid",
+      "sha256": "79127fab06667b9daa4836e5a9a49dc31ab0673a4ade776423c28d753a957a90",
+      "size": 21639
     },
     {
       "title": "Guilty Hero",
@@ -102,7 +110,9 @@
       "thumbnail": "",
       "color": "#ef4444",
       "slug": "guilty-hero",
-      "path": "games/guilty-hero"
+      "path": "games/guilty-hero",
+      "sha256": "132c3d36145514ae3dc0b2340f8a7b2b7d872e60cf23e4807c7aebdca3681027",
+      "size": 24361
     },
     {
       "title": "Abyssal Tetris",
@@ -123,7 +133,9 @@
       "thumbnail": "",
       "color": "#8b5cf6",
       "slug": "abyssal-tetris",
-      "path": "games/abyssal-tetris"
+      "path": "games/abyssal-tetris",
+      "sha256": "2f631191213ffd083ff4a0eba80a3da00b9f36be4772c75df3a0a42ee2c73224",
+      "size": 20497
     },
     {
       "title": "Memory Cards",
@@ -142,7 +154,9 @@
       "thumbnail": "",
       "color": "#8b5cf6",
       "slug": "memory",
-      "path": "games/memory"
+      "path": "games/memory",
+      "sha256": "b09ececf9f66028d8d4a637b0b6def3ed922bed077ccd66a2709f4363e28c1bf",
+      "size": 4826
     },
     {
       "title": "Pong",
@@ -161,7 +175,9 @@
       "thumbnail": "",
       "color": "#f59e0b",
       "slug": "pong",
-      "path": "games/pong"
+      "path": "games/pong",
+      "sha256": "60b5f25af7c976e504a94c26c2e52955fca4981051e281ee1a3bd252c61184db",
+      "size": 4871
     }
   ],
   "count": 8,
