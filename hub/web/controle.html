@@ -1,0 +1,115 @@
+<!doctype html>
+<html lang="pt-BR"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="theme-color" content="#120d18">
+<title>Controle · Games Hub</title>
+<style>
+/* Controle de fliperama no celular: direcional à esquerda, losango X/Y/A/B à direita. Tema único escuro. */
+:root{--bg:#120d18;--panel:#1f1729;--line:#3a2c48;--ink:#f1e6d6;--dim:#9c8fae;--ok:#5cd65c;--warn:#ffd23f;--bad:#ff4a3a;
+ --soco:#d7263d;--chute:#2f6fdf;--pulo:#2e9e5b;--esp:#9b4dca;color-scheme:dark}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;height:100%;background:var(--bg);color:var(--ink);font-family:"Arial Black",Impact,system-ui,sans-serif;overflow:hidden;touch-action:none;-webkit-user-select:none;user-select:none;overscroll-behavior:none}
+#top{position:fixed;left:0;right:0;top:0;display:flex;align-items:center;gap:10px;padding:calc(8px + env(safe-area-inset-top,0px)) max(14px,env(safe-area-inset-right,0px)) 8px max(14px,env(safe-area-inset-left,0px));z-index:3}
+#dot{width:12px;height:12px;border-radius:50%;background:var(--warn);box-shadow:0 0 10px var(--warn);flex:none}
+#dot.ok{background:var(--ok);box-shadow:0 0 10px var(--ok)}#dot.bad{background:var(--bad);box-shadow:0 0 10px var(--bad)}
+#st{font:12px/1.2 system-ui,sans-serif;color:var(--dim);flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#st b{color:var(--ink);font-weight:700}
+.tbtn{font:700 12px system-ui,sans-serif;color:var(--ink);background:var(--panel);border:1px solid var(--line);border-radius:999px;padding:9px 14px}
+.tbtn:active,.tbtn.on{background:var(--line)}
+#pad{position:fixed;inset:0;display:flex}
+#left,#right{position:relative;flex:1;min-width:0}
+#left{border-right:1px dashed #ffffff10}
+#hintL,#hintR{position:absolute;bottom:calc(10px + env(safe-area-inset-bottom,0px));left:0;right:0;text-align:center;font:11px system-ui,sans-serif;color:#ffffff40;pointer-events:none}
+#base{position:absolute;width:150px;height:150px;border-radius:50%;border:3px solid #ffffff22;background:radial-gradient(circle,#ffffff10,#ffffff04 70%);left:50%;top:55%;transform:translate(-50%,-50%);pointer-events:none}
+#knob{position:absolute;width:66px;height:66px;border-radius:50%;background:#ffffff30;border:3px solid #ffffff55;left:42px;top:42px}
+.arrow{position:absolute;width:0;height:0;border:9px solid transparent;opacity:.35}
+.arrow.u{border-bottom-color:#fff;left:66px;top:4px}.arrow.d{border-top-color:#fff;left:66px;bottom:4px}
+.arrow.l{border-right-color:#fff;top:66px;left:4px}.arrow.r{border-left-color:#fff;top:66px;right:4px}
+.arrow.lit{opacity:1;filter:drop-shadow(0 0 4px #fff)}
+#diamond{position:absolute;left:50%;top:55%;width:236px;height:236px;transform:translate(-50%,-50%)}
+.b{position:absolute;width:92px;height:92px;border-radius:50%;display:flex;flex-direction:column;align-items:center;justify-content:center;color:#fff;border:3px solid #ffffff55;box-shadow:inset 0 -6px 0 #00000040,0 6px 16px #0008}
+.b span{font-size:30px;line-height:1}.b small{font:700 11px system-ui,sans-serif;letter-spacing:.06em;opacity:.95;margin-top:2px}
+.b[data-b=k]{left:72px;top:0;background:var(--chute)}
+.b[data-b=p]{left:0;top:72px;background:var(--soco)}
+.b[data-b=s]{right:0;top:72px;background:var(--esp)}
+.b[data-b=j]{left:72px;bottom:0;background:var(--pulo)}
+.b.on{transform:scale(.92);filter:brightness(1.45);box-shadow:inset 0 3px 0 #00000040,0 0 22px #fff6}
+#rot{position:fixed;inset:0;display:none;align-items:center;justify-content:center;flex-direction:column;gap:14px;background:var(--bg);z-index:5;text-align:center;padding:24px}
+#rot p{font:15px/1.5 system-ui,sans-serif;color:var(--dim);margin:0;max-width:30ch}
+#rot h2{margin:0;font-size:22px;color:var(--warn)}
+@media (orientation:portrait){#rot.show{display:flex}}
+@media (max-height:360px){#diamond{transform:translate(-50%,-50%) scale(.85)}#base{transform:translate(-50%,-50%) scale(.85)}}
+@media (prefers-reduced-motion:reduce){.b.on{transform:none}}
+</style></head><body>
+<div id="pad">
+  <div id="left"><div id="base"><i class="arrow u"></i><i class="arrow d"></i><i class="arrow l"></i><i class="arrow r"></i><div id="knob"></div></div><div id="hintL">Polegar em qualquer lugar deste lado para andar</div></div>
+  <div id="right"><div id="diamond">
+    <div class="b" data-b="k"><span>Y</span><small>CHUTE</small></div>
+    <div class="b" data-b="p"><span>X</span><small>SOCO</small></div>
+    <div class="b" data-b="s"><span>B</span><small>ESPECIAL</small></div>
+    <div class="b" data-b="j"><span>A</span><small>PULO</small></div>
+  </div><div id="hintR">Deslize entre os botões · X + Y juntos = especial</div></div>
+</div>
+<div id="top"><div id="dot"></div><div id="st">Conectando à TV…</div><button class="tbtn" id="bPause" type="button">PAUSA</button><button class="tbtn" id="bFull" type="button">TELA CHEIA</button></div>
+<div id="rot"><h2>Gire o celular</h2><p>O controle fica melhor deitado, com o polegar esquerdo no direcional e o direito nos botões.</p><button class="tbtn" id="bPort" type="button">USAR EM PÉ MESMO</button></div>
+<script>
+'use strict';
+const dot=document.getElementById('dot'),st=document.getElementById('st');
+let ws=null,ready=false,retry=0;
+const sent={};                       // estado enviado à TV
+function status(kind,html){dot.className=kind;st.innerHTML=html}
+function connect(){
+  status('', 'Conectando à TV…');
+  try{ws=new WebSocket('ws://'+location.host+'/ws')}catch(e){return later()}
+  ws.onopen=()=>{ready=true;retry=0;status('ok','<b>Conectado</b> · jogando na TV');for(const k in sent)sent[k]=0;flush(true)};
+  ws.onmessage=e=>{if(e.data==='hit')buzz([45]);else if(e.data==='ko')buzz([80,60,120])};
+  ws.onclose=()=>{ready=false;later()};
+  ws.onerror=()=>{try{ws.close()}catch(e){}};
+}
+function later(){retry++;status('bad','Sem conexão · tentando de novo… confira se o celular está no mesmo Wi‑Fi da TV');setTimeout(connect,Math.min(3000,500*retry))}
+function buzz(p){try{navigator.vibrate&&navigator.vibrate(p)}catch(e){}}
+// estado desejado = direcional + botões; envia só o que mudou
+const want={l:0,r:0,u:0,d:0,p:0,k:0,j:0,s:0,st:0};
+function flush(force){if(!ready)return;const out=[];for(const k in want){if(force||want[k]!==(sent[k]||0)){out.push(k+want[k]);sent[k]=want[k]}}if(out.length)try{ws.send(out.join(','))}catch(e){}}
+setInterval(()=>{if(ready)try{ws.send('hb')}catch(e){}},2000);
+
+// ---------- direcional flutuante ----------
+const left=document.getElementById('left'),base=document.getElementById('base'),knob=document.getElementById('knob'),arrows={u:base.querySelector('.u'),d:base.querySelector('.d'),l:base.querySelector('.l'),r:base.querySelector('.r')};
+let sid=null,ox=0,oy=0;
+function stickTo(dx,dy){const m=Math.hypot(dx,dy),max=48;if(m>max){dx*=max/m;dy*=max/m}knob.style.left=(42+dx)+'px';knob.style.top=(42+dy)+'px';
+  const dz=16,a=Math.atan2(dy,dx),on=Math.hypot(dx,dy)>dz;
+  // 8 direções: setores de 45°
+  const sx=on?Math.round(Math.cos(a)*1.25):0,sy=on?Math.round(Math.sin(a)*1.25):0;
+  const nl=sx<0?1:0,nr=sx>0?1:0,nu=sy<0?1:0,nd=sy>0?1:0;
+  if(nl+nr+nu+nd>(want.l+want.r+want.u+want.d))buzz(8);
+  want.l=nl;want.r=nr;want.u=nu;want.d=nd;for(const k in arrows)arrows[k].classList.toggle('lit',!!want[k]);flush()}
+left.addEventListener('pointerdown',e=>{if(sid!==null)return;sid=e.pointerId;try{left.setPointerCapture(e.pointerId)}catch(_){}const rc=left.getBoundingClientRect();
+  const x=Math.min(Math.max(e.clientX-rc.left,80),rc.width-80),y=Math.min(Math.max(e.clientY-rc.top,90),rc.height-80);
+  base.style.left=x+'px';base.style.top=y+'px';ox=e.clientX;oy=e.clientY;stickTo(0,0);e.preventDefault()});
+left.addEventListener('pointermove',e=>{if(e.pointerId===sid)stickTo(e.clientX-ox,e.clientY-oy)});
+const endStick=e=>{if(e.pointerId!==sid)return;sid=null;stickTo(0,0)};
+left.addEventListener('pointerup',endStick);left.addEventListener('pointercancel',endStick);
+
+// ---------- botões: vários dedos e deslizar entre eles ----------
+const right=document.getElementById('right'),btns=[...document.querySelectorAll('.b')],fingers=new Map();
+function btnAt(x,y){let best=null,bd=1e9;for(const b of btns){const r=b.getBoundingClientRect(),cx=r.left+r.width/2,cy=r.top+r.height/2,d=Math.hypot(x-cx,y-cy);if(d<r.width*0.62&&d<bd){bd=d;best=b.dataset.b}}return best}
+function syncBtns(){const on=new Set(fingers.values());let newly=false;for(const b of btns){const k=b.dataset.b,v=on.has(k)?1:0;if(v&&!want[k])newly=true;want[k]=v;b.classList.toggle('on',!!v)}if(newly)buzz(14);flush()}
+right.addEventListener('pointerdown',e=>{try{right.setPointerCapture(e.pointerId)}catch(_){}fingers.set(e.pointerId,btnAt(e.clientX,e.clientY));syncBtns();e.preventDefault()});
+right.addEventListener('pointermove',e=>{if(!fingers.has(e.pointerId))return;const b=btnAt(e.clientX,e.clientY);if(b!==fingers.get(e.pointerId)){fingers.set(e.pointerId,b);syncBtns()}});
+const endBtn=e=>{if(fingers.delete(e.pointerId))syncBtns()};
+right.addEventListener('pointerup',endBtn);right.addEventListener('pointercancel',endBtn);
+
+// ---------- barra de cima ----------
+const bPause=document.getElementById('bPause');
+bPause.addEventListener('pointerdown',e=>{e.stopPropagation();want.st=1;bPause.classList.add('on');flush();buzz(14)});
+const pauseUp=()=>{want.st=0;bPause.classList.remove('on');flush()};bPause.addEventListener('pointerup',pauseUp);bPause.addEventListener('pointercancel',pauseUp);
+document.getElementById('bFull').onclick=()=>{try{const el=document.documentElement;(el.requestFullscreen||el.webkitRequestFullscreen).call(el);screen.orientation&&screen.orientation.lock&&screen.orientation.lock('landscape').catch(()=>{})}catch(e){}};
+const rot=document.getElementById('rot');rot.classList.add('show');document.getElementById('bPort').onclick=()=>rot.classList.remove('show');
+
+// soltar tudo se o app sair da tela (evita personagem andando sozinho)
+function releaseAll(){for(const k in want)want[k]=0;fingers.clear();sid=null;stickTo(0,0);syncBtns()}
+document.addEventListener('visibilitychange',()=>{if(document.hidden)releaseAll()});
+addEventListener('blur',releaseAll);
+connect();
+</script>
+</body></html>

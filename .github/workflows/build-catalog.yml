@@ -12,7 +12,7 @@ permissions:
 
 jobs:
   build-catalog:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
 
@@ -31,8 +31,11 @@ jobs:
             else
               echo ',' >> catalog_tmp.json
             fi
-            # Inject slug and path into each meta entry
-            jq --arg slug "$slug" --arg path "$dir" '. + {slug: $slug, path: $path}' "$meta" >> catalog_tmp.json
+            # Inject slug, path, SHA-256 and size of index.html (the hub app verifies the download with them)
+            sha=$(sha256sum "$dir/index.html" | cut -d' ' -f1)
+            size=$(stat -c%s "$dir/index.html")
+            jq --arg slug "$slug" --arg path "$dir" --arg sha "$sha" --argjson size "$size" \
+              '. + {slug: $slug, path: $path, sha256: $sha, size: $size}' "$meta" >> catalog_tmp.json
           done
           echo ']}' >> catalog_tmp.json
           # Sort by date descending and add count
