@@ -48,6 +48,7 @@ jobs:
           cd games/punho-de-dragao
           mkdir -p android/app/src/main/assets
           cp index.html android/app/src/main/assets/index.html
+          cp controle.html android/app/src/main/assets/controle.html
           cd android
           gradle --no-daemon :app:assembleDebug
 
